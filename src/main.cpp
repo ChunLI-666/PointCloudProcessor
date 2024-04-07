@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     std::string imagesFolder = argv[3];
     std::string outputPath = argv[4];
 
-    PointCloudProcessor processor(pointCloudPath, odometryPath, imagesFolder);
+    PointCloudProcessor processor(pointCloudPath, odometryPath, imagesFolder, outputPath);
 
     try {
         processor.process();

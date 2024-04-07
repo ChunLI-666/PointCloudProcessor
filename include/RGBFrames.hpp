@@ -5,16 +5,19 @@
 #include <unordered_map>
 #include "FrameData.hpp"
 
-struct RGBPoint {
+struct RGBPoint
+{
     float x, y, z;
     std::unordered_map<int, std::shared_ptr<FrameData>> frames;
 };
 
-class RGBFrames {
+class RGBFrames
+{
 public:
-    void addFrame(const std::shared_ptr<FrameData>& frame);
+    void addFrame(const FrameData &frame);
+
 private:
-    std::vector<std::shared_ptr<FrameData>> frames;
+    std::vector<FrameData> frames;
 };
 
 #endif // RGBFRAMES_HPP

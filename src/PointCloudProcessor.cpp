@@ -1,22 +1,32 @@
 #include "PointCloudProcessor.hpp"
 #include <pcl/io/pcd_io.h>          // For loading point cloud
 #include <pcl/filters/voxel_grid.h> // Example for downsampling
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/transforms.h>
 #include <iostream>
 #include <fstream> // For reading odometry file
 
 #include <Eigen/Dense> // Add missing include statement for Eigen library
+#include <tf/transform_datatypes.h>
 
-PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath, const std::string &odometryPath, const std::string &imagesFolder) : pointCloudPath(pointCloudPath), odometryPath(odometryPath), imagesFolder(imagesFolder)
+PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath, 
+                                        const std::string &odometryPath, 
+                                        const std::string &imagesFolder, 
+                                        const std::string &outputPath) 
+: pointCloudPath(pointCloudPath), odometryPath(odometryPath), imagesFolder(imagesFolder), outputPath(outputPath)
+
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
     R_lidar2cam << -0.99993085, -0.00561199, -0.0103344,
-            0.01032389,  0.00189784, -0.99994491,
-            0.0056313,  -0.99998245, -0.00183977;
+        0.01032389, 0.00189784, -0.99994491,
+        0.0056313, -0.99998245, -0.00183977;
     t_lidar2cam << 0.071771636420221, -0.04934294727365431, -0.0677501086411397;
-    K_camera << 4818.200388954926, 0.0, 2032.4178620390019,
-                0.0,   4819.10345841615, 1535.1895959282901,
-                0.0, 0.0, 1.0;
-    D_camera << 0.003043514741045163, 0.06634739187544138, -0.000217681797407554, -0.0006654964142658197, 0;
+    // R_cam2imu;
+    // t_cam2imu;
+    K_camera = {4818.200388954926, 0.0, 2032.4178620390019,
+                0.0, 4819.10345841615, 1535.1895959282901,
+                0.0, 0.0, 1.0};
+    D_camera = {0.003043514741045163, 0.06634739187544138, -0.000217681797407554, -0.0006654964142658197, 0};
 }
 
 void PointCloudProcessor::loadPointCloud()
@@ -28,51 +38,51 @@ void PointCloudProcessor::loadPointCloud()
     std::cout << "Loaded point cloud with " << cloud->points.size() << " points." << std::endl;
 }
 
-void PointCloudProcessor::transformCloudToCamera()
-{
+// void PointCloudProcessor::transformCloudToCamera()
+// {
 
-    Eigen::Affine3f transform = Eigen::Affine3f::Identity(); // Replace with actual transformation
-    transform.linear() = R_lidar2cam.cast<float>();
-    transform.translation() = t_lidar2cam.cast<float>();
+//     Eigen::Affine3f transform = Eigen::Affine3f::Identity(); // Replace with actual transformation
+//     transform.linear() = R_lidar2cam.cast<float>();
+//     transform.translation() = t_lidar2cam.cast<float>();
 
-    pcl::transformPointCloud(*cloud, *cloudInCameraCoord, transform);
+//     pcl::transformPointCloud(*cloud, *cloudInCameraCoord, transform);
 
-}
+// }
 
-void PointCloudProcessor::loadVisualOdometry()
-{
-    std::ifstream voFile(odometryPath);
-    std::string line;
-    while (getline(voFile, line))
-    {
-        std::istringstream iss(line);
-        double timestamp, x, y, z, qw, qx, qy, qz;
-        if (!(iss >> timestamp >> x >> y >> z >> qw >> qx >> qy >> qz))
-        {
-            break;
-        }
-        // Store or process this odometry data
-    }
-}
+// void PointCloudProcessor::loadVisualOdometry()
+// {
+//     std::ifstream voFile(odometryPath);
+//     std::string line;
+//     while (getline(voFile, line))
+//     {
+//         std::istringstream iss(line);
+//         double timestamp, x, y, z, qw, qx, qy, qz;
+//         if (!(iss >> timestamp >> x >> y >> z >> qw >> qx >> qy >> qz))
+//         {
+//             break;
+//         }
+//         // Store or process this odometry data
+//     }
+// }
 
-void PointCloudProcessor::loadImages()
-{
-    // Load images from imagesFolder
-    // This might involve iterating over files in the folder and loading them as cv::Mat
-    std::vector<cv::Mat> images;
-    cv::String folderPath(imagesFolder + "/*.jpg"); // Assuming images are in JPEG format
-    cv::glob(folderPath, images, false);            // Get list of image file paths
+// void PointCloudProcessor::loadImages()
+// {
+//     // Load images from imagesFolder
+//     // This might involve iterating over files in the folder and loading them as cv::Mat
+//     std::vector<cv::Mat> images;
+//     cv::String folderPath(imagesFolder + "/*.jpg"); // Assuming images are in JPEG format
+//     cv::glob(folderPath, images, false);            // Get list of image file paths
 
-    for (const auto &imagePath : images)
-    {
-        cv::Mat image = cv::imread(imagePath); // Load image using OpenCV
-        if (image.empty())
-        {
-            throw std::runtime_error("Couldn't read image file: " + imagePath);
-        }
-        // Process the image or store it for later use
-    }
-}
+//     for (const auto &imagePath : images)
+//     {
+//         cv::Mat image = cv::imread(imagePath); // Load image using OpenCV
+//         if (image.empty())
+//         {
+//             throw std::runtime_error("Couldn't read image file: " + imagePath);
+//         }
+//         // Process the image or store it for later use
+//     }
+// }
 
 void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData &frame)
 {
@@ -97,44 +107,50 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     //    If the depth value of a point is greater than the depth value of the pixel, it means
     //    the point is occluded or hidden and should be removed.
 
-    // Implement the above steps based on your specific camera model and requirements.
-
-    // Example code to remove points outside a rectangular FOV:
-    // Assuming you have the FOV defined by top, bottom, left, and right boundaries
-    // and the projected points are stored in a pcl::PointCloud<pcl::PointXYZRGB> object called projectedCloud
-
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr filteredCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
 
     Pose6D pose6d = getOdom(frame.pose);
     Eigen::Affine3f t_w2c = Eigen::Affine3f::Identity(); // camera odometry
-    t_c2w = pcl::getTransformation(pose6d.x, pose6d.y, pose6d.z, pose6d.roll, pose6d.pitch, pose6d.yaw);
+    Eigen::Affine3f t_c2w = pcl::getTransformation(pose6d.x, pose6d.y, pose6d.z, pose6d.roll, pose6d.pitch, pose6d.yaw);
+    t_w2c = t_c2w.inverse();
 
     pcl::transformPointCloud(*cloud, *cloudInCameraPose, t_w2c);
-    
 
     // 1. hidden point removal
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud = ConvertPCLToOpen3D(cloudInCameraPose);
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud_filtered = std::make_shared<open3d::geometry::PointCloud>();
+    // std::shared_ptr<open3d::geometry::TriangleMesh> o3d_cloud_filtered_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
+
     Eigen::Vector3d camera_position = {pose6d.x, pose6d.y, pose6d.z};
-    double radius = 1.0; // TODO: hardcode
+    double radius = 1000.0; // TODO: hardcode
 
-    //Perform hidden point removal
+    // Perform hidden point removal
     auto result = o3d_cloud->HiddenPointRemoval(camera_position, radius);
-    o3d_cloud_filtered = std::get<0>(result);
+    // o3d_cloud_filtered = std::get<0>(result);
+    auto o3d_cloud_filtered_mesh = std::get<0>(result);
+    o3d_cloud_filtered = ConvertMeshToPointCloud(o3d_cloud_filtered_mesh);
 
-    // 2. project 3d points to 2d images 
+    // 2. project 3d points to 2d images
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
-    
-    generateColorMap(frame, pcl_cloud_filtered, cloudWithRGB);
-      
 
-    // Replace the original point cloud with the filtered point cloud
-    cloud = filteredCloud;
+    // 3. Save the filtered point cloud to a PCD file
+    // visualizePointCloud(pcl_cloud_filtered);
+
+    // std::string filteredPointCloudPath = std::string(outputPath + "/filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
+    // pcl::PCDWriter pcd_writer;
+
+    // if (pcd_writer.writeBinary(filteredPointCloudPath, *pcl_cloud_filtered) == -1)
+    // {
+    //     throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+    // }
+    // std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
+
+    generateColorMap(frame, pcl_cloud_filtered, cloudWithRGB);
 }
 
-void PointCloudProcessor::generateColorMap(const FrameData &frame, 
+void PointCloudProcessor::generateColorMap(const FrameData &frame,
                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc,
                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color)
 {
@@ -246,15 +262,15 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 //     }
 // }
 
-Pose6D getOdom(const Pose &pose)
+Pose6D PointCloudProcessor::getOdom(const Pose &pose)
 {
     auto tx = pose.x;
     auto ty = pose.y;
     auto tz = pose.z;
 
     double roll, pitch, yaw;
-    // geometry_msgs::Quaternion quat = _odom->pose.pose.orientation;
-    tf::Matrix3x3(tf::Quaternion(pose.qx, quat.qy, quat.qz, quat.qw)).getRPY(roll, pitch, yaw);
+    // geometry_msgs::Quaternion quat = pose;
+    tf::Matrix3x3(tf::Quaternion(pose.qx, pose.qy, pose.qz, pose.qw)).getRPY(roll, pitch, yaw);
 
     return Pose6D{tx, ty, tz, roll, pitch, yaw};
 } // getOdom
@@ -284,7 +300,7 @@ void PointCloudProcessor::loadImagesAndOdometry()
         Pose pose{x, y, z, qw, qx, qy, qz};
 
         // std::string imagePath = findImagePathForTimestamp(timestamp);
-        std::string imagePath = imagesFolder + "/image_" + std::to_string(timestamp) + ".jpg";
+        std::string imagePath = imagesFolder + std::to_string(timestamp) + ".jpg";
         if (!imagePath.empty())
         {
             frames.emplace_back(imagePath, timestamp, pose);
@@ -303,7 +319,7 @@ void PointCloudProcessor::process()
     for (const auto &frame : frames)
     {
         // Process each frame
-        applyFOVDetectionAndHiddenPointRemoval(const FrameData &frame);
+        applyFOVDetectionAndHiddenPointRemoval(frame);
         colorizePoints();
         smoothColors();
     }
@@ -318,11 +334,38 @@ void PointCloudProcessor::saveColorizedPointCloud(const std::string &outputPath)
     std::cout << "Saved colorized point cloud." << std::endl;
 }
 
-std::string PointCloudProcessor::findImagePathForTimestamp(double timestamp)
-{
-    // Implement logic to match image file names to timestamps.
-    // This might involve enumerating files in imagesFolder and finding the closest match.
-    // Returning an empty string if no match is found.
+// std::string PointCloudProcessor::findImagePathForTimestamp(double timestamp)
+// {
+//     // Implement logic to match image file names to timestamps.
+//     // This might involve enumerating files in imagesFolder and finding the closest match.
+//     // Returning an empty string if no match is found.
 
-    return ""; // Placeholder
+//     return ""; // Placeholder
+// }
+
+void PointCloudProcessor::visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud)
+{
+    // Create a PCLVisualizer object
+    pcl::visualization::PCLVisualizer viewer("PointCloud Viewer");
+
+    // Set the background of the viewer to black
+    viewer.setBackgroundColor(0, 0, 0);
+
+    // Add the point cloud to the viewer with some unique ID
+    viewer.addPointCloud<pcl::PointXYZRGB>(cloud, "filteredCloud");
+
+    // Add coordinate axes to the viewer
+    viewer.addCoordinateSystem(1.0);
+
+    // Set properties of the point cloud
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "filteredCloud");
+
+    // Main visualization loop
+    while (!viewer.wasStopped())
+    {
+        viewer.spinOnce(100);                                        // Update the viewer
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Sleep to reduce CPU usage
+    }
+
+    return;
 }

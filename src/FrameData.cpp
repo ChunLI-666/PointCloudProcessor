@@ -3,10 +3,10 @@
 #include <iostream>
 
 FrameData::FrameData(const std::string& imagePath, double image_timestamp, const Pose& pose)
-    : pose(pose), image_timestamp(image_timestamp) {
+    : pose(pose), imageTimestamp(image_timestamp) {
     
     this->imagePath = imagePath;
-    this->image_timestamp = imageTimestamp;
+    this->imageTimestamp = image_timestamp;
     this->pose = pose;
 
 //    image = cv::imread(imagePath, cv::IMREAD_COLOR);
