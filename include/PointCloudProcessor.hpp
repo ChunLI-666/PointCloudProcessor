@@ -86,6 +86,31 @@ public:
         return point_cloud;
     }
 
+    Eigen::Vector2d distort(Eigen::Vector2d point)
+    {
+        double k1 = D_camera[0];
+        double k2 = D_camera[1];
+        double k3 = D_camera[4];
+        double p1 = D_camera[2];
+        double p2 = D_camera[3];
+
+        double x2 = point.x() * point.x();
+        double y2 = point.y() * point.y();
+
+        double r2 = x2 + y2;
+        double r4 = r2 * r2;
+        double r6 = r2 * r4;
+
+        double r_coeff = 1.0 + k1 * r2 + k2 * r4 + k3 * r6;
+        double t_coeff1 = 2.0 * point.x() * point.y();
+        double t_coeff2 = r2 + 2.0 * x2;
+        double t_coeff3 = r2 + 2.0 * y2;
+        double x = r_coeff * point.x() + p1 * t_coeff1 + p2 * t_coeff2;
+        double y = r_coeff * point.y() + p1 * t_coeff3 + p2 * t_coeff1;
+
+        return Eigen::Vector2d(x, y);
+    }
+
 private:
     std::string pointCloudPath;
     std::string odometryPath;

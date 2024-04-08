@@ -124,7 +124,7 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     // std::shared_ptr<open3d::geometry::TriangleMesh> o3d_cloud_filtered_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
 
     Eigen::Vector3d camera_position = {pose6d.x, pose6d.y, pose6d.z};
-    double radius = 1000.0; // TODO: hardcode
+    double radius = 100000.0; // TODO: hardcode
 
     // Perform hidden point removal
     auto result = o3d_cloud->HiddenPointRemoval(camera_position, radius);
@@ -135,19 +135,21 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     // 2. project 3d points to 2d images
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
 
+
+    generateColorMap(frame, pcl_cloud_filtered, cloudWithRGB);
+
     // 3. Save the filtered point cloud to a PCD file
     // visualizePointCloud(pcl_cloud_filtered);
 
-    // std::string filteredPointCloudPath = std::string(outputPath + "/filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
-    // pcl::PCDWriter pcd_writer;
+        std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
+    pcl::PCDWriter pcd_writer;
 
-    // if (pcd_writer.writeBinary(filteredPointCloudPath, *pcl_cloud_filtered) == -1)
-    // {
-    //     throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
-    // }
-    // std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
+    if (pcd_writer.writeBinary(filteredPointCloudPath, *cloudWithRGB) == -1)
+    {
+        throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+    }
+    std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
-    generateColorMap(frame, pcl_cloud_filtered, cloudWithRGB);
 }
 
 void PointCloudProcessor::generateColorMap(const FrameData &frame,
@@ -163,6 +165,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
         throw std::runtime_error("Failed to read image from: " + frame.imagePath);
         return;
     }
+    std::cout << "Reading image from: " << frame.imagePath << std::endl;
     cv::Mat rgb = cv::imread(frame.imagePath);
     cv::Mat hsv;
     cv::cvtColor(rgb, hsv, cv::COLOR_BGR2HSV);
@@ -186,6 +189,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 
     for (int i = 0; i < pc->points.size(); i++)
     {
+        Eigen::Vector3d point_pc = {pc->points[i].x, pc->points[i].y, pc->points[i].z};
         Eigen::Vector3d point_camera = {pc->points[i].x, pc->points[i].y, pc->points[i].z};
         // Eigen::Vector3d point_camera = Rcl * point_pc + tcl;
         if (point_camera.z() > 0)
