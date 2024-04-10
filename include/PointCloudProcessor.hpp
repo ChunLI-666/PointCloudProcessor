@@ -9,6 +9,8 @@
 #include <vector>
 #include "RGBFrames.hpp"
 #include "FrameData.hpp"
+#include <tf/transform_datatypes.h>
+
 
 class PointCloudProcessor
 {
@@ -111,6 +113,46 @@ public:
         return Eigen::Vector2d(x, y);
     }
 
+    // Pose6D getPose6DFromOdom(nav_msgs::Odometry::ConstPtr _odom)
+    // {
+    //     auto tx = _odom->pose.pose.position.x;
+    //     auto ty = _odom->pose.pose.position.y;
+    //     auto tz = _odom->pose.pose.position.z;
+
+    //     double roll, pitch, yaw;
+    //     geometry_msgs::Quaternion quat = _odom->pose.pose.orientation;
+    //     tf::Matrix3x3(tf::Quaternion(quat.x, quat.y, quat.z, quat.w)).getRPY(roll, pitch, yaw);
+
+    //     return Pose6D{tx, ty, tz, roll, pitch, yaw}; 
+    // } // getOdom
+
+    Pose6D getPose6DFromOdom(const Pose &pose)
+    {
+        auto tx = pose.x;
+        auto ty = pose.y;
+        auto tz = pose.z;
+
+        double roll, pitch, yaw;
+        // geometry_msgs::Quaternion quat = pose;
+        tf::Matrix3x3(tf::Quaternion(pose.qx, pose.qy, pose.qz, pose.qw)).getRPY(roll, pitch, yaw);
+
+        return Pose6D{tx, ty, tz, roll, pitch, yaw};
+    } // getOdom
+
+
+    Pose getPoseFromOdom(const Pose &pose)
+    {
+        auto tx = pose.x;
+        auto ty = pose.y;
+        auto tz = pose.z;
+
+        double roll, pitch, yaw;
+        // geometry_msgs::Quaternion quat = _odom->pose.pose.orientation;
+        // tf::Matrix3x3(tf::Quaternion(quat.x, quat.y, quat.z, quat.w)).getRPY(roll, pitch, yaw);
+
+        return Pose{tx, ty, tz, pose.qw, pose.qx, pose.qy, pose.qz}; 
+    } // getOdom
+
 private:
     std::string pointCloudPath;
     std::string odometryPath;
@@ -137,7 +179,8 @@ private:
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
     void visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud);
-    Pose6D getOdom(const Pose &pose);
+    // Pose6D getPose6DFromOdom(const Pose &pose);
+    // Pose getPoseFromOdom(const Pose &pose);
     void loadImagesAndOdometry();
     void colorizePoints();
     void smoothColors();

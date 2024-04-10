@@ -111,9 +111,18 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
 
-    Pose6D pose6d = getOdom(frame.pose);
-    Eigen::Affine3f t_w2c = Eigen::Affine3f::Identity(); // camera odometry
-    Eigen::Affine3f t_c2w = pcl::getTransformation(pose6d.x, pose6d.y, pose6d.z, pose6d.roll, pose6d.pitch, pose6d.yaw);
+    // Pose6D pose6d = getOdom(frame.pose);
+    // Eigen::Affine3f t_w2c = Eigen::Affine3f::Identity(); // camera odometry
+    // Eigen::Affine3f t_c2w = pcl::getTransformation(pose6d.x, pose6d.y, pose6d.z, pose6d.roll, pose6d.pitch, pose6d.yaw);
+
+    Pose voPose = getPoseFromOdom(frame.pose);
+    Eigen::Isometry3d t_w2c = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d t_c2w = Eigen::Isometry3d::Identity();
+    Eigen::Quaterniond q_c2w(voPose.qw, voPose.qx, voPose.qy, voPose.qz); // qw, qx, qy, qz
+    Eigen::Vector3d trans_c2w(voPose.x, voPose.y, voPose.z);
+    t_c2w.translate(trans_c2w);
+    t_c2w.rotate(q_c2w);
+
     t_w2c = t_c2w.inverse();
 
     pcl::transformPointCloud(*cloud, *cloudInCameraPose, t_w2c);
@@ -123,8 +132,8 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud_filtered = std::make_shared<open3d::geometry::PointCloud>();
     // std::shared_ptr<open3d::geometry::TriangleMesh> o3d_cloud_filtered_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
 
-    Eigen::Vector3d camera_position = {pose6d.x, pose6d.y, pose6d.z};
-    double radius = 100000.0; // TODO: hardcode
+    Eigen::Vector3d camera_position = {voPose.x, voPose.y, voPose.z};
+    double radius = 1000.0; // TODO: hardcode
 
     // Perform hidden point removal
     auto result = o3d_cloud->HiddenPointRemoval(camera_position, radius);
@@ -171,8 +180,8 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
     cv::cvtColor(rgb, hsv, cv::COLOR_BGR2HSV);
 
     // 调整饱和度和亮度
-    float saturation_scale = 1.5; // 饱和度增加 50%
-    float brightness_scale = 1.5; // 亮度增加 50%
+    float saturation_scale = 1.0; // 饱和度增加 0%
+    float brightness_scale = 1.5; // 亮度增加 20%
     for (int y = 0; y < hsv.rows; y++)
     {
         for (int x = 0; x < hsv.cols; x++)
@@ -266,18 +275,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 //     }
 // }
 
-Pose6D PointCloudProcessor::getOdom(const Pose &pose)
-{
-    auto tx = pose.x;
-    auto ty = pose.y;
-    auto tz = pose.z;
 
-    double roll, pitch, yaw;
-    // geometry_msgs::Quaternion quat = pose;
-    tf::Matrix3x3(tf::Quaternion(pose.qx, pose.qy, pose.qz, pose.qw)).getRPY(roll, pitch, yaw);
-
-    return Pose6D{tx, ty, tz, roll, pitch, yaw};
-} // getOdom
 
 void PointCloudProcessor::colorizePoints()
 {
