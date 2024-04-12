@@ -124,15 +124,16 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     t_c2w.rotate(q_c2w);
 
     t_w2c = t_c2w.inverse();
-
-    pcl::transformPointCloud(*cloud, *cloudInCameraPose, t_w2c);
+Eigen::Affine3f transformation = t_w2c.cast<float>();
+    pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation);
 
     // 1. hidden point removal
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud = ConvertPCLToOpen3D(cloudInCameraPose);
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud_filtered = std::make_shared<open3d::geometry::PointCloud>();
     // std::shared_ptr<open3d::geometry::TriangleMesh> o3d_cloud_filtered_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
 
-    Eigen::Vector3d camera_position = {voPose.x, voPose.y, voPose.z};
+    // Eigen::Vector3d camera_position = {voPose.x, voPose.y, voPose.z};
+    Eigen::Vector3d camera_position = {0, 0, 0};
     double radius = 1000.0; // TODO: hardcode
 
     // Perform hidden point removal
@@ -198,7 +199,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 
     for (int i = 0; i < pc->points.size(); i++)
     {
-        Eigen::Vector3d point_pc = {pc->points[i].x, pc->points[i].y, pc->points[i].z};
+        // Eigen::Vector3d point_pc = {pc->points[i].x, pc->points[i].y, pc->points[i].z};
         Eigen::Vector3d point_camera = {pc->points[i].x, pc->points[i].y, pc->points[i].z};
         // Eigen::Vector3d point_camera = Rcl * point_pc + tcl;
         if (point_camera.z() > 0)
@@ -210,9 +211,9 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
             if (u >= 0 && u < rgb.cols && v >= 0 && v < rgb.rows)
             {
                 pcl::PointXYZRGB point_rgb;
-                point_rgb.x = point_pc.x();
-                point_rgb.y = point_pc.y();
-                point_rgb.z = point_pc.z();
+                point_rgb.x = point_camera.x();
+                point_rgb.y = point_camera.y();
+                point_rgb.z = point_camera.z();
                 point_rgb.b = (rgb.at<cv::Vec3b>(v, u)[0]);
                 point_rgb.g = (rgb.at<cv::Vec3b>(v, u)[1]);
                 point_rgb.r = (rgb.at<cv::Vec3b>(v, u)[2]);
@@ -318,12 +319,18 @@ void PointCloudProcessor::process()
     // loadImages();
     loadImagesAndOdometry();
 
+int cnt = 0;
     for (const auto &frame : frames)
     {
+        if (cnt % 10 == 0)
+        {
+            std::cout << "Processing frame " << cnt << " of " << frame.imagePath << std::endl;
         // Process each frame
         applyFOVDetectionAndHiddenPointRemoval(frame);
         colorizePoints();
         smoothColors();
+        }
+        cnt += 1;
     }
 }
 
