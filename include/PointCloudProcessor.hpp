@@ -11,14 +11,18 @@
 #include "FrameData.hpp"
 #include <tf/transform_datatypes.h>
 
-
 class PointCloudProcessor
 {
 public:
-    PointCloudProcessor(const std::string &pointCloudPath, const std::string &odometryPath, const std::string &imagesFolder, const std::string &outputPath);
+    PointCloudProcessor(
+        const std::string &pointCloudPath, 
+        const std::string &odometryPath, 
+        const std::string &imagesFolder, 
+        const std::string &outputPath
+        const bool enableMLS);
 
     void process();
-    void saveColorizedPointCloud(const std::string &outputPath);
+    void saveColorizedPointCloud();
 
     // Function to convert a PCL Point Cloud to an Open3D Point Cloud
     std::shared_ptr<open3d::geometry::PointCloud> ConvertPCLToOpen3D(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pcl_cloud)
@@ -123,7 +127,7 @@ public:
     //     geometry_msgs::Quaternion quat = _odom->pose.pose.orientation;
     //     tf::Matrix3x3(tf::Quaternion(quat.x, quat.y, quat.z, quat.w)).getRPY(roll, pitch, yaw);
 
-    //     return Pose6D{tx, ty, tz, roll, pitch, yaw}; 
+    //     return Pose6D{tx, ty, tz, roll, pitch, yaw};
     // } // getOdom
 
     Pose6D getPose6DFromOdom(const Pose &pose)
@@ -139,7 +143,6 @@ public:
         return Pose6D{tx, ty, tz, roll, pitch, yaw};
     } // getOdom
 
-
     Pose getPoseFromOdom(const Pose &pose)
     {
         auto tx = pose.x;
@@ -150,21 +153,23 @@ public:
         // geometry_msgs::Quaternion quat = _odom->pose.pose.orientation;
         // tf::Matrix3x3(tf::Quaternion(quat.x, quat.y, quat.z, quat.w)).getRPY(roll, pitch, yaw);
 
-        return Pose{tx, ty, tz, pose.qw, pose.qx, pose.qy, pose.qz}; 
+        return Pose{tx, ty, tz, pose.qw, pose.qx, pose.qy, pose.qz};
     } // getOdom
 
-    bool markKeyframe(const FrameData &newFrame, const FrameData* lastFrame, const double distThreshold,const double angThreshold){
+    bool markKeyframe(const FrameData &newFrame, const FrameData *lastFrame, const double distThreshold, const double angThreshold)
+    {
         double deltaDistance;
         double deltaAngle;
-        
-        if (lastFrame == nullptr){
+
+        if (lastFrame == nullptr)
+        {
             return true;
         }
 
-        const Pose& lastFramePose = lastFrame->pose;
-        const Pose& newFramePose = newFrame.pose； 
+        const Pose &lastFramePose = lastFrame->pose;
+        const Pose &newFramePose = newFrame.pose；
 
-        double dx = newFramePose.x - lastFramePose.x;
+                                   double dx = newFramePose.x - lastFramePose.x;
         double dy = newFramePose.y - lastFramePose.y;
         double dz = newFramePose.z - lastFramePose.z;
         deltaDistance = std::sqrt(dx * dx + dy * dy + dz * dz);
@@ -172,11 +177,12 @@ public:
         Eigen::Quaterniond q1(lastFramePose.qw, lastFramePose.qx, lastFramePose.qy, lastFramePose.qz);
         Eigen::Quaterniond q2(newFramePose.qw, newFramePose.qx, newFramePose.qy, newFramePose.qz);
         Eigen::Quaterniond q_diff = q1.inverse() * q2;
-        
+
         // Convert quaternion difference to angle in degrees
         deltaAngle = q_diff.angularDistance(q1) * 180.0 / M_PI;
 
-        if (deltaDistance >= distThreshold || deltaAngle >= angThreshold){
+        if (deltaDistance >= distThreshold || deltaAngle >= angThreshold)
+        {
             return true;
         }
         else
@@ -188,11 +194,11 @@ private:
     std::string odometryPath;
     std::string imagesFolder;
     std::string outputPath;
+    bool enableMLS;
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraCoord;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithRGB;
-
 
     std::vector<FrameData> frames;
 

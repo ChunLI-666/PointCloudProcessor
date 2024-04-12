@@ -13,7 +13,11 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &odometryPath,
                                          const std::string &imagesFolder,
                                          const std::string &outputPath)
-    : pointCloudPath(pointCloudPath), odometryPath(odometryPath), imagesFolder(imagesFolder), outputPath(outputPath)
+    : pointCloudPath(pointCloudPath), 
+    odometryPath(odometryPath), 
+    imagesFolder(imagesFolder), 
+    outputPath(outputPath),
+    enableMLS(enableMLS)
 
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -28,15 +32,40 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                 0.0, 4819.10345841615, 1535.1895959282901,
                 0.0, 0.0, 1.0};
     D_camera = {0.003043514741045163, 0.06634739187544138, -0.000217681797407554, -0.0006654964142658197, 0};
+
+    // Create an instance of the MLSParameters structure to hold the MLS parameters
+    bool enableMLS = false;
+    MLSParameters mlsParams;
+    mlsParams.compute_normals = true;
+    mlsParams.polynomial_order = 2;
+    mlsParams.search_radius = 0.03;
+    mlsParams.sqr_gauss_param = 0.0009;
+    mlsParams.num_threads = 16;
+    mlsParams.slp_upsampling_radius = 0.05;
+    mlsParams.slp_upsampling_stepsize = 0.01;
+    mlsParams.rud_point_density = 50;
+    mlsParams.vgd_voxel_size = 0.001;
+    mlsParams.vgd_iterations = 4;
+    mlsParams.sor_kmean_neighbour = 6;
+    mlsParams.sor_std_dev = 0.3;
+    mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;   
 }
 
 void PointCloudProcessor::loadPointCloud()
 {
-    if (pcl::io::loadPCDFile<pcl::PointXYZRGB>(pointCloudPath, *cloud) == -1)
-    {
-        throw std::runtime_error("Couldn't read point cloud file.");
+    if(enableMLS){
+        CloudSmooth cloudSmooth(pointCloudPath);
+        cloudSmooth.initalize(mlsParams);
+        cloudSmooth.process(cloud);
+    }else{
+        if (pcl::io::loadPCDFile<pcl::PointXYZRGB>(pointCloudPath, *cloud) == -1)
+        {
+            throw std::runtime_error("Couldn't read point cloud file.");
+        }
+        std::cout << "Loaded point cloud with " << cloud->points.size() << " points." << std::endl;
+
     }
-    std::cout << "Loaded point cloud with " << cloud->points.size() << " points." << std::endl;
+
 }
 
 // void PointCloudProcessor::transformCloudToCamera()
@@ -334,9 +363,6 @@ void PointCloudProcessor::loadImagesAndOdometry()
 void PointCloudProcessor::process()
 {
     loadPointCloud();
-    // transformCloudToCamera();
-    // loadVisualOdometry();
-    // loadImages();
     loadImagesAndOdometry();
     
     bool isKeyframe = true;
