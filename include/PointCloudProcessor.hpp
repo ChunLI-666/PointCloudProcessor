@@ -216,7 +216,8 @@ private:
     void loadImagesAndOdometry();
     void colorizePoints();
     void smoothColors();
-    void generateColorMap();
+    void saveColorizedPointCloud()
+    // void generateColorMap();
 };
 
 #endif // POINTCLOUDPROCESSOR_HPP

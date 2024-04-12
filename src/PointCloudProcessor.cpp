@@ -9,11 +9,11 @@
 #include <Eigen/Dense> // Add missing include statement for Eigen library
 #include <tf/transform_datatypes.h>
 
-PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath, 
-                                        const std::string &odometryPath, 
-                                        const std::string &imagesFolder, 
-                                        const std::string &outputPath) 
-: pointCloudPath(pointCloudPath), odometryPath(odometryPath), imagesFolder(imagesFolder), outputPath(outputPath)
+PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
+                                         const std::string &odometryPath,
+                                         const std::string &imagesFolder,
+                                         const std::string &outputPath)
+    : pointCloudPath(pointCloudPath), odometryPath(odometryPath), imagesFolder(imagesFolder), outputPath(outputPath)
 
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -126,8 +126,8 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     t_c2w.rotate(q_c2w);
 
     t_w2c = t_c2w.inverse();
-Eigen::Affine3f transformation_w2c = t_w2c.cast<float>();
-Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
+    Eigen::Affine3f transformation_w2c = t_w2c.cast<float>();
+    Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
     pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c);
 
     // 1. hidden point removal
@@ -152,7 +152,7 @@ Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
     // 3. Save the filtered point cloud to a PCD file
     // visualizePointCloud(pcl_cloud_filtered);
 
-        std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
+    std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
     pcl::PCDWriter pcd_writer;
 
     if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
@@ -175,7 +175,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
     // Eigen::Matrix3d Rcl = T_cl.rotation();
     // Eigen::Vector3d tcl = T_cl.translation();
     // cv::Mat rgb = cv_bridge::toCvCopy(*msg_rgb, "bgr8")->image;
-    if(frame.imagePath == "")
+    if (frame.imagePath == "")
     {
         throw std::runtime_error("Failed to read image from: " + frame.imagePath);
         return;
@@ -291,6 +291,23 @@ void PointCloudProcessor::smoothColors()
     // Smooth the colors of the point cloud
 }
 
+void PointCloudProcessor::saveColorizedPointCloud()
+{
+    if (cloudInWorldWithRGB->size() > 0)
+    {
+        string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
+        pcl::PCDWriter pcd_writer;
+        if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGB) == -1)
+        {
+            throw std::runtime_error("Couldn't save colorized point cloud.");
+        }
+        else
+        {
+            cout << "All colored cloud saved to: " << cloudInWorldWithRGBDir << endl;
+        }
+    }
+}
+
 void PointCloudProcessor::loadImagesAndOdometry()
 {
     std::ifstream voFile(odometryPath);
@@ -321,12 +338,13 @@ void PointCloudProcessor::process()
     // loadVisualOdometry();
     // loadImages();
     loadImagesAndOdometry();
+    
     bool isKeyframe = true;
     // Initialize keyframe identification variables
-    FrameData* previousFrame = nullptr;
+    FrameData *previousFrame = nullptr;
     static const double distThreshold = 1.0; // meter
     static const double angThreshold = 10.0; // degree
-    
+
     for (const auto &frame : frames)
     {
         isKeyframe = markKeyframe(const &frame, const previousFrame, distThreshold, angThreshold);
@@ -339,17 +357,9 @@ void PointCloudProcessor::process()
             smoothColors();
             isKeyframe = false;
         }
-        previousFrame = const_cast<FrameData*>(&frame);
+        previousFrame = const_cast<FrameData *>(&frame);
     }
-}
-
-void PointCloudProcessor::saveColorizedPointCloud(const std::string &outputPath)
-{
-    if (pcl::io::savePCDFile<pcl::PointXYZRGB>(outputPath, *cloud) == -1)
-    {
-        throw std::runtime_error("Couldn't save colorized point cloud.");
-    }
-    std::cout << "Saved colorized point cloud." << std::endl;
+    saveColorizedPointCloud();
 }
 
 // std::string PointCloudProcessor::findImagePathForTimestamp(double timestamp)
