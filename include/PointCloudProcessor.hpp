@@ -153,6 +153,36 @@ public:
         return Pose{tx, ty, tz, pose.qw, pose.qx, pose.qy, pose.qz}; 
     } // getOdom
 
+    bool markKeyframe(const FrameData &newFrame, const FrameData* lastFrame, const double distThreshold,const double angThreshold){
+        double deltaDistance;
+        double deltaAngle;
+        
+        if (lastFrame == nullptr){
+            return true;
+        }
+
+        const Pose& lastFramePose = lastFrame->pose;
+        const Pose& newFramePose = newFrame.pose； 
+
+        double dx = newFramePose.x - lastFramePose.x;
+        double dy = newFramePose.y - lastFramePose.y;
+        double dz = newFramePose.z - lastFramePose.z;
+        deltaDistance = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+        Eigen::Quaterniond q1(lastFramePose.qw, lastFramePose.qx, lastFramePose.qy, lastFramePose.qz);
+        Eigen::Quaterniond q2(newFramePose.qw, newFramePose.qx, newFramePose.qy, newFramePose.qz);
+        Eigen::Quaterniond q_diff = q1.inverse() * q2;
+        
+        // Convert quaternion difference to angle in degrees
+        deltaAngle = q_diff.angularDistance(q1) * 180.0 / M_PI;
+
+        if (deltaDistance >= distThreshold || deltaAngle >= angThreshold){
+            return true;
+        }
+        else
+            return false;
+    }
+
 private:
     std::string pointCloudPath;
     std::string odometryPath;
@@ -161,6 +191,8 @@ private:
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraCoord;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithRGB;
+
 
     std::vector<FrameData> frames;
 

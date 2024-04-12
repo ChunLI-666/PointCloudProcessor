@@ -17,6 +17,7 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
 
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+    cloudInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
     R_lidar2cam << -0.99993085, -0.00561199, -0.0103344,
         0.01032389, 0.00189784, -0.99994491,
         0.0056313, -0.99998245, -0.00183977;
@@ -109,7 +110,8 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
 
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr filteredCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZRGB>());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInBodyWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInWorldWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
 
     // Pose6D pose6d = getOdom(frame.pose);
     // Eigen::Affine3f t_w2c = Eigen::Affine3f::Identity(); // camera odometry
@@ -124,8 +126,9 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     t_c2w.rotate(q_c2w);
 
     t_w2c = t_c2w.inverse();
-Eigen::Affine3f transformation = t_w2c.cast<float>();
-    pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation);
+Eigen::Affine3f transformation_w2c = t_w2c.cast<float>();
+Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
+    pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c);
 
     // 1. hidden point removal
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud = ConvertPCLToOpen3D(cloudInCameraPose);
@@ -144,9 +147,7 @@ Eigen::Affine3f transformation = t_w2c.cast<float>();
 
     // 2. project 3d points to 2d images
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
-
-
-    generateColorMap(frame, pcl_cloud_filtered, cloudWithRGB);
+    generateColorMap(frame, pcl_cloud_filtered, scanInBodyWithRGB);
 
     // 3. Save the filtered point cloud to a PCD file
     // visualizePointCloud(pcl_cloud_filtered);
@@ -154,12 +155,16 @@ Eigen::Affine3f transformation = t_w2c.cast<float>();
         std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
     pcl::PCDWriter pcd_writer;
 
-    if (pcd_writer.writeBinary(filteredPointCloudPath, *cloudWithRGB) == -1)
+    if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
     {
         throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
     }
     std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
+    // 4. Transforn colored scan into world frame
+    pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w);
+
+    *cloudInWorldWithRGB += *scanInWorldWithRGB;
 }
 
 void PointCloudProcessor::generateColorMap(const FrameData &frame,
@@ -276,8 +281,6 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 //     }
 // }
 
-
-
 void PointCloudProcessor::colorizePoints()
 {
     // Colorize points based on the projected image coordinates
@@ -318,19 +321,25 @@ void PointCloudProcessor::process()
     // loadVisualOdometry();
     // loadImages();
     loadImagesAndOdometry();
-
-int cnt = 0;
+    bool isKeyframe = true;
+    // Initialize keyframe identification variables
+    FrameData* previousFrame = nullptr;
+    static const double distThreshold = 1.0; // meter
+    static const double angThreshold = 10.0; // degree
+    
     for (const auto &frame : frames)
     {
-        if (cnt % 10 == 0)
+        isKeyframe = markKeyframe(const &frame, const previousFrame, distThreshold, angThreshold);
+        if (isKeyframe)
         {
             std::cout << "Processing frame " << cnt << " of " << frame.imagePath << std::endl;
-        // Process each frame
-        applyFOVDetectionAndHiddenPointRemoval(frame);
-        colorizePoints();
-        smoothColors();
+            // Process each frame
+            applyFOVDetectionAndHiddenPointRemoval(frame);
+            colorizePoints();
+            smoothColors();
+            isKeyframe = false;
         }
-        cnt += 1;
+        previousFrame = const_cast<FrameData*>(&frame);
     }
 }
 
