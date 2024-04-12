@@ -63,9 +63,7 @@ void PointCloudProcessor::loadPointCloud()
             throw std::runtime_error("Couldn't read point cloud file.");
         }
         std::cout << "Loaded point cloud with " << cloud->points.size() << " points." << std::endl;
-
     }
-
 }
 
 // void PointCloudProcessor::transformCloudToCamera()
@@ -379,8 +377,8 @@ void PointCloudProcessor::process()
             std::cout << "Processing frame " << cnt << " of " << frame.imagePath << std::endl;
             // Process each frame
             applyFOVDetectionAndHiddenPointRemoval(frame);
-            colorizePoints();
-            smoothColors();
+            // colorizePoints();
+            // smoothColors();
             isKeyframe = false;
         }
         previousFrame = const_cast<FrameData *>(&frame);
