@@ -50,29 +50,70 @@ void CloudSmooth::initialize(const MLSParameters &params)
     sor_kmean_neighbour_ = params.sor_kmean_neighbour;
     sor_std_dev_ = params.sor_std_dev;
     upsampling_enum_ = params.upsampling_enum;
+
+    std::cout << "\n==============================\n"
+              << "MLS Parameters:"
+              << "\n    Compute Normals: " << compute_normals_
+              << "\n    Polynomial Order: " << polynomial_order_
+              << "\n    Search Radius: " << search_radius_
+              << "\n    Squared Gaussian Parameter: " << sqr_gauss_param_
+              << "\n    Number of Threads: " << num_threads_
+              << "\n    SLP Upsampling Radius: " << slp_upsampling_radius_
+              << "\n    SLP Upsampling Step Size: " << slp_upsampling_stepsize_
+              << "\n    RUD Point Density: " << rud_point_density_
+              << "\n    VGD Voxel Size: " << vgd_voxel_size_
+              << "\n    VGD Iterations: " << vgd_iterations_
+              << "\n    SOR K-Mean Neighbour: " << sor_kmean_neighbour_
+              << "\n    SOR Standard Deviation: " << sor_std_dev_
+              << "\n    Upsampling Method: " << upsampling_enum_
+              << "\n==============================\n"
+              << std::endl;
 }
 
-pcl::PointCloud<pcl::PointXYZI>::Ptr CloudSmooth::process(pcl::PointCloud<pcl::PointXYZI>::Ptr &cloudAftSmooth)
+void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZI>::Ptr &cloudAftSmooth)
 {
-
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>());
+    
     // Load the input PCD file
-    std::cout << "====== MLS: Load PCD file: " << input_file_path_ << std::endl;
+    std::cout << "\n==============================\n" 
+              << "MLS: Load PCD file: " << input_file_path_ 
+               << "\n==============================\n"
+              << std::endl;
     if (pcl::io::loadPCDFile<pcl::PointXYZI>(input_file_path_, *cloud) == -1)
     {
         std::cerr << "Couldn't read file " << input_file_path_ << std::endl;
         return;
-    }
+    } std::cout << "Success read file " << input_file_path_ << std::endl;
+
 
     // Process the PCD file
     auto start = std::chrono::high_resolution_clock::now();
     size_t initial_point_count = cloud->points.size();
 
-    // Perform MLS smoothing
-    std::cout << "====== MLS: Perform MLS smoothing " << std::endl;
+
     pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointNormal> mls_points;
     pcl::MovingLeastSquares<pcl::PointXYZI, pcl::PointNormal> mls;
 
+    // // Apply statistical outlier removal
+    // std::cout  << "\n==============================\n" 
+    //             << " MLS: Apply the first statistical outlier removal " 
+    //             << "\n==============================\n"
+    //             << std::endl;
+    // pcl::StatisticalOutlierRemoval<pcl::PointXYZI> sor;
+    // sor.setInputCloud(cloud);
+    // sor.setMeanK(sor_kmean_neighbour_);
+    // sor.setStddevMulThresh(sor_std_dev_);
+    // sor.filter(mls_points);
+
+
+    // Perform MLS smoothing
+    std::cout << "\n==============================\n" 
+              << "MLS: Perform MLS smoothing " 
+              << "\n==============================\n"
+              << std::endl;
+    
+    
     mls.setComputeNormals(compute_normals_);
     mls.setInputCloud(cloud);
     mls.setPolynomialOrder(polynomial_order_);
@@ -106,27 +147,32 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr CloudSmooth::process(pcl::PointCloud<pcl::P
     mls.process(mls_points);
 
     // Apply statistical outlier removal
-    std::cout << "====== MLS: Apply statistical outlier removal " << std::endl;
-    pcl::StatisticalOutlierRemoval<pcl::PointNormal> sor;
-    sor.setInputCloud(mls_points.makeShared());
-    sor.setMeanK(sor_kmean_neighbour_);
-    sor.setStddevMulThresh(sor_std_dev_);
-    sor.filter(mls_points);
+    std::cout  << "\n==============================\n" 
+                << " MLS: Apply the second statistical outlier removal " 
+                << "\n==============================\n"
+                << std::endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointNormal> sorForSecond;
+    sorForSecond.setInputCloud(mls_points.makeShared());
+    sorForSecond.setMeanK(sor_kmean_neighbour_);
+    sorForSecond.setStddevMulThresh(sor_std_dev_);
+    sorForSecond.filter(mls_points);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
     // Log the processing information
-    std::cout << "Processed file: " << input_file_path_
+    std::cout <<"\n==============================\n"  
+              << " MLS Summary: Processed file: " << input_file_path_
               << "\nInitial point count: " << initial_point_count
               << "\nFinal point count: " << mls_points.size()
               << "\nElapsed time: " << elapsed.count() << " s"
-              << "\nSaved to: " << output_file << std::endl;
+              << "\n==============================\n"
+              << std::endl;
 
     // Save the output file
     // std::string output_file = boost::filesystem::path(input_file_path_).stem().string() + "_smoothed.pcd";
     // pcl::io::savePCDFile(output_file, mls_points);
     // *cloudAftSmooth = mls_points;
-    pcl::copyPointCloud(*mls_points, *cloudAftSmooth);
+    pcl::copyPointCloud(mls_points, *cloudAftSmooth);
     // return cloudAftSmooth;
 }
