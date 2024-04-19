@@ -35,7 +35,7 @@ struct MLSParameters {
 
 class CloudSmooth {
 public:
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
+    // pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
     // pcl::PointCloud<pcl::PointXYZI>::Ptr cloudAftSmooth;
     // Constructor that accepts the input file path
     CloudSmooth(const std::string& input_file_path);
@@ -44,7 +44,7 @@ public:
     void initialize(const MLSParameters& params);
 
     // Method to process the input PCD file
-    void process(pcl::PointCloud<pcl::PointXYZIz>::Ptr &cloudAftSmooth);
+    void process(pcl::PointCloud<pcl::PointXYZI>::Ptr &cloudAftSmooth);
 
 private:
     

@@ -9,6 +9,7 @@
 #include <vector>
 #include "RGBFrames.hpp"
 #include "FrameData.hpp"
+#include "cloudSmooth.hpp"
 #include <tf/transform_datatypes.h>
 
 class PointCloudProcessor
@@ -19,10 +20,9 @@ public:
         const std::string &odometryPath, 
         const std::string &imagesFolder, 
         const std::string &outputPath,
-        const bool enableMLS);
+        const bool &enableMLS);
 
     void process();
-    void saveColorizedPointCloud();
 
     // Function to convert a PCL Point Cloud to an Open3D Point Cloud
     std::shared_ptr<open3d::geometry::PointCloud> ConvertPCLToOpen3D(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pcl_cloud)
@@ -163,6 +163,7 @@ public:
 
         if (lastFrame == nullptr)
         {
+            std::cout << "First frame is always a keyframe." << std::endl;
             return true;
         }
 
@@ -181,11 +182,19 @@ public:
         // Convert quaternion difference to angle in degrees
         deltaAngle = q_diff.angularDistance(q1) * 180.0 / M_PI;
 
-        if (deltaDistance >= distThreshold || deltaAngle >= angThreshold)
+        // Print debug information
+        std::cout << "Frame: " << newFrame.imagePath << std::endl;
+        std::cout << "Distance to last frame: " << deltaDistance << " (threshold: " << distThreshold << ")" << std::endl;
+        std::cout << "Angle to last frame: " << deltaAngle << " (threshold: " << angThreshold << ")" << std::endl;
+
+
+        if (deltaDistance >= distThreshold)
         {
+            std::cout << "Selecting frame as keyframe.\n" << std::endl;
             return true;
         }
         else
+            std::cout << "Frame not selected as keyframe.\n" << std::endl;
             return false;
     }
 
@@ -195,8 +204,9 @@ private:
     std::string imagesFolder;
     std::string outputPath;
     bool enableMLS;
+    MLSParameters mlsParams;
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraCoord;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithRGB;
 
@@ -222,7 +232,7 @@ private:
     void loadImagesAndOdometry();
     void colorizePoints();
     void smoothColors();
-    // void saveColorizedPointCloud();
+    void saveColorizedPointCloud();
     // void generateColorMap();
 };
 
