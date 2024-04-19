@@ -63,16 +63,24 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr CloudSmooth::process(pcl::PointCloud<pcl::P
         return;
     }
 
-    // Process the PCD file
-    auto start = std::chrono::high_resolution_clock::now();
-    size_t initial_point_count = cloud->points.size();
-
-    // Perform MLS smoothing
-    std::cout << "====== MLS: Perform MLS smoothing " << std::endl;
     pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointNormal> mls_points;
     pcl::MovingLeastSquares<pcl::PointXYZI, pcl::PointNormal> mls;
 
+    // Process the PCD file
+    auto start = std::chrono::high_resolution_clock::now();
+    size_t initial_point_count = cloud->points.size();
+
+    // Apply statistical outlier removal
+    std::cout << "====== MLS: Apply 1st statistical outlier removal before MLS" << std::endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZI> sorOriginCloud;
+    sorOriginCloud.setInputCloud(cloud);
+    sorOriginCloud.setMeanK(sor_kmean_neighbour_);
+    sorOriginCloud.setStddevMulThresh(sor_std_dev_);
+    sorOriginCloud.filter(cloud);
+
+    // Perform MLS smoothing
+    std::cout << "====== MLS: Perform MLS smoothing " << std::endl;
     mls.setComputeNormals(compute_normals_);
     mls.setInputCloud(cloud);
     mls.setPolynomialOrder(polynomial_order_);
@@ -106,12 +114,12 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr CloudSmooth::process(pcl::PointCloud<pcl::P
     mls.process(mls_points);
 
     // Apply statistical outlier removal
-    std::cout << "====== MLS: Apply statistical outlier removal " << std::endl;
-    pcl::StatisticalOutlierRemoval<pcl::PointNormal> sor;
-    sor.setInputCloud(mls_points.makeShared());
-    sor.setMeanK(sor_kmean_neighbour_);
-    sor.setStddevMulThresh(sor_std_dev_);
-    sor.filter(mls_points);
+    std::cout << "====== MLS: Apply 2nd statistical outlier removal after MLS " << std::endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointNormal> sorAfterMLS;
+    sorAfterMLS.setInputCloud(mls_points.makeShared());
+    sorAfterMLS.setMeanK(sor_kmean_neighbour_);
+    sorAfterMLS.setStddevMulThresh(sor_std_dev_);
+    sorAfterMLS.filter(mls_points);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
