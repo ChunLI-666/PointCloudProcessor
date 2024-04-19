@@ -1,4 +1,5 @@
 #include "PointCloudProcessor.hpp"
+#include "cloudSmooth.hpp"
 #include <pcl/io/pcd_io.h>          // For loading point cloud
 #include <pcl/filters/voxel_grid.h> // Example for downsampling
 #include <pcl/visualization/pcl_visualizer.h>
@@ -12,12 +13,13 @@
 PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &odometryPath,
                                          const std::string &imagesFolder,
-                                         const std::string &outputPath)
-    : pointCloudPath(pointCloudPath), 
-    odometryPath(odometryPath), 
-    imagesFolder(imagesFolder), 
-    outputPath(outputPath),
-    enableMLS(enableMLS)
+                                         const std::string &outputPath,
+                                         const bool &enableMLS)
+    : pointCloudPath(pointCloudPath),
+      odometryPath(odometryPath),
+      imagesFolder(imagesFolder),
+      outputPath(outputPath),
+      enableMLS(enableMLS)
 
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -34,30 +36,36 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     D_camera = {0.003043514741045163, 0.06634739187544138, -0.000217681797407554, -0.0006654964142658197, 0};
 
     // Create an instance of the MLSParameters structure to hold the MLS parameters
-    bool enableMLS = false;
-    MLSParameters mlsParams;
+    // MLSParameters mlsParams;
     mlsParams.compute_normals = true;
     mlsParams.polynomial_order = 2;
-    mlsParams.search_radius = 0.03;
+    // mlsParams.search_radius = 0.03;
+    mlsParams.search_radius = 0.02;
     mlsParams.sqr_gauss_param = 0.0009;
-    mlsParams.num_threads = 16;
+    mlsParams.num_threads = 12;
     mlsParams.slp_upsampling_radius = 0.05;
     mlsParams.slp_upsampling_stepsize = 0.01;
     mlsParams.rud_point_density = 50;
-    mlsParams.vgd_voxel_size = 0.001;
+    // mlsParams.vgd_voxel_size = 0.001; // 0.001
+    mlsParams.vgd_voxel_size = 0.005; // 0.001
     mlsParams.vgd_iterations = 4;
     mlsParams.sor_kmean_neighbour = 6;
     mlsParams.sor_std_dev = 0.3;
-    mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;   
+    mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
 }
 
 void PointCloudProcessor::loadPointCloud()
 {
-    if(enableMLS){
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloudWithIntensity(new pcl::PointCloud<pcl::PointXYZI>());
+    if (enableMLS)
+    {
         CloudSmooth cloudSmooth(pointCloudPath);
-        cloudSmooth.initalize(mlsParams);
-        cloudSmooth.process(cloud);
-    }else{
+        cloudSmooth.initialize(mlsParams);
+        cloudSmooth.process(cloudWithIntensity);
+        pcl::copyPointCloud(*cloudWithIntensity, *cloud);
+    }
+    else
+    {
         if (pcl::io::loadPCDFile<pcl::PointXYZRGB>(pointCloudPath, *cloud) == -1)
         {
             throw std::runtime_error("Couldn't read point cloud file.");
@@ -214,7 +222,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 
     // 调整饱和度和亮度
     float saturation_scale = 1.0; // 饱和度增加 0%
-    float brightness_scale = 1.5; // 亮度增加 20%
+    float brightness_scale = 1.2; // 亮度增加 20%
     for (int y = 0; y < hsv.rows; y++)
     {
         for (int x = 0; x < hsv.cols; x++)
@@ -322,7 +330,7 @@ void PointCloudProcessor::saveColorizedPointCloud()
 {
     if (cloudInWorldWithRGB->size() > 0)
     {
-        string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
+        std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
         pcl::PCDWriter pcd_writer;
         if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGB) == -1)
         {
@@ -362,26 +370,26 @@ void PointCloudProcessor::process()
 {
     loadPointCloud();
     loadImagesAndOdometry();
-    
+
     bool isKeyframe = true;
     // Initialize keyframe identification variables
     FrameData *previousFrame = nullptr;
-    static const double distThreshold = 1.0; // meter
-    static const double angThreshold = 10.0; // degree
+    const double distThreshold = 1.0; // meter
+    const double angThreshold = 25.0; // degree
 
     for (const auto &frame : frames)
     {
-        isKeyframe = markKeyframe(const &frame, const previousFrame, distThreshold, angThreshold);
+        isKeyframe = markKeyframe(frame, previousFrame, distThreshold, angThreshold);
         if (isKeyframe)
         {
-            std::cout << "Processing frame " << cnt << " of " << frame.imagePath << std::endl;
+            std::cout << "\n Processing frame: " << frame.imagePath << std::endl;
             // Process each frame
             applyFOVDetectionAndHiddenPointRemoval(frame);
             // colorizePoints();
             // smoothColors();
             isKeyframe = false;
+            previousFrame = const_cast<FrameData *>(&frame);
         }
-        previousFrame = const_cast<FrameData *>(&frame);
     }
     saveColorizedPointCloud();
 }
