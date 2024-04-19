@@ -14,21 +14,19 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &odometryPath,
                                          const std::string &imagesFolder,
                                          const std::string &outputPath,
-<<<<<<< HEAD
                                          const bool enableMLS)
     : pointCloudPath(pointCloudPath), 
     odometryPath(odometryPath), 
     imagesFolder(imagesFolder), 
     outputPath(outputPath),
     enableMLS(enableMLS)
-=======
+                                         const std::string &outputPath,
                                          const bool &enableMLS)
     : pointCloudPath(pointCloudPath),
       odometryPath(odometryPath),
       imagesFolder(imagesFolder),
       outputPath(outputPath),
       enableMLS(enableMLS)
->>>>>>> cf51b1eaca41b518a26adc4aa2f0725b12612160
 
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -39,18 +37,15 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     t_lidar2cam << 0.071771636420221, -0.04934294727365431, -0.0677501086411397;
     // R_cam2imu;
     // t_cam2imu;
-    K_camera = {4818.200388954926, 0.0, 2032.4178620390019,
+    K_camera = {4818.200388954926, 0.0, 2032.4178620390019, 
                 0.0, 4819.10345841615, 1535.1895959282901,
                 0.0, 0.0, 1.0};
     D_camera = {0.003043514741045163, 0.06634739187544138, -0.000217681797407554, -0.0006654964142658197, 0};
 
     // Create an instance of the MLSParameters structure to hold the MLS parameters
-<<<<<<< HEAD
     // bool enableMLS = false;
     MLSParameters mlsParams;
-=======
     // MLSParameters mlsParams;
->>>>>>> cf51b1eaca41b518a26adc4aa2f0725b12612160
     mlsParams.compute_normals = true;
     mlsParams.polynomial_order = 2;
     // mlsParams.search_radius = 0.03;
@@ -64,8 +59,8 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.vgd_voxel_size = 0.005; // 0.001
     mlsParams.vgd_iterations = 4;
     mlsParams.sor_kmean_neighbour = 6;
-    mlsParams.sor_std_dev = 0.3;
-    mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
+    mlsParams.sor_std_dev = 0.3; 
+    mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;   
 }
 
 void PointCloudProcessor::loadPointCloud()
