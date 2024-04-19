@@ -86,34 +86,24 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZI>::Ptr &cloudAftSmooth)
     } std::cout << "Success read file " << input_file_path_ << std::endl;
 
 
-    // Process the PCD file
-    auto start = std::chrono::high_resolution_clock::now();
-    size_t initial_point_count = cloud->points.size();
-
-
     pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointNormal> mls_points;
     pcl::MovingLeastSquares<pcl::PointXYZI, pcl::PointNormal> mls;
 
-    // // Apply statistical outlier removal
-    // std::cout  << "\n==============================\n" 
-    //             << " MLS: Apply the first statistical outlier removal " 
-    //             << "\n==============================\n"
-    //             << std::endl;
-    // pcl::StatisticalOutlierRemoval<pcl::PointXYZI> sor;
-    // sor.setInputCloud(cloud);
-    // sor.setMeanK(sor_kmean_neighbour_);
-    // sor.setStddevMulThresh(sor_std_dev_);
-    // sor.filter(mls_points);
-
+    // Process the PCD file
+    auto start = std::chrono::high_resolution_clock::now();
+    size_t initial_point_count = cloud->points.size();    
+    
+    // Apply statistical outlier removal
+    std::cout << "====== MLS: Apply 1st statistical outlier removal before MLS" << std::endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZI> sorOriginCloud;
+    sorOriginCloud.setInputCloud(cloud);
+    sorOriginCloud.setMeanK(sor_kmean_neighbour_);
+    sorOriginCloud.setStddevMulThresh(sor_std_dev_);
+    sorOriginCloud.filter(cloud);
 
     // Perform MLS smoothing
-    std::cout << "\n==============================\n" 
-              << "MLS: Perform MLS smoothing " 
-              << "\n==============================\n"
-              << std::endl;
-    
-    
+    std::cout << "====== MLS: Perform MLS smoothing " << std::endl;
     mls.setComputeNormals(compute_normals_);
     mls.setInputCloud(cloud);
     mls.setPolynomialOrder(polynomial_order_);
@@ -147,16 +137,12 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZI>::Ptr &cloudAftSmooth)
     mls.process(mls_points);
 
     // Apply statistical outlier removal
-    std::cout  << "\n==============================\n" 
-                << " MLS: Apply the second statistical outlier removal " 
-                << "\n==============================\n"
-                << std::endl;
-    pcl::StatisticalOutlierRemoval<pcl::PointNormal> sorForSecond;
-    sorForSecond.setInputCloud(mls_points.makeShared());
-    sorForSecond.setMeanK(sor_kmean_neighbour_);
-    sorForSecond.setStddevMulThresh(sor_std_dev_);
-    sorForSecond.filter(mls_points);
-
+    std::cout << "====== MLS: Apply 2nd statistical outlier removal after MLS " << std::endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointNormal> sorAfterMLS;
+    sorAfterMLS.setInputCloud(mls_points.makeShared());
+    sorAfterMLS.setMeanK(sor_kmean_neighbour_);
+    sorAfterMLS.setStddevMulThresh(sor_std_dev_);
+    sorAfterMLS.filter(mls_points);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
