@@ -18,7 +18,7 @@ public:
         const std::string &pointCloudPath, 
         const std::string &odometryPath, 
         const std::string &imagesFolder, 
-        const std::string &outputPath
+        const std::string &outputPath,
         const bool enableMLS);
 
     void process();
@@ -167,9 +167,9 @@ public:
         }
 
         const Pose &lastFramePose = lastFrame->pose;
-        const Pose &newFramePose = newFrame.pose；
+        const Pose &newFramePose = newFrame.pose;
 
-                                   double dx = newFramePose.x - lastFramePose.x;
+        double dx = newFramePose.x - lastFramePose.x;
         double dy = newFramePose.y - lastFramePose.y;
         double dz = newFramePose.z - lastFramePose.z;
         deltaDistance = std::sqrt(dx * dx + dy * dy + dz * dz);
@@ -222,7 +222,7 @@ private:
     void loadImagesAndOdometry();
     void colorizePoints();
     void smoothColors();
-    void saveColorizedPointCloud()
+    // void saveColorizedPointCloud();
     // void generateColorMap();
 };
 

@@ -12,13 +12,14 @@ int main(int argc, char** argv) {
     std::string odometryPath = argv[2];
     std::string imagesFolder = argv[3];
     std::string outputPath = argv[4];
+    bool enableMLS = std.atoi(argv[5]);
 
-    PointCloudProcessor processor(pointCloudPath, odometryPath, imagesFolder, outputPath);
+    PointCloudProcessor processor(pointCloudPath, odometryPath, imagesFolder, outputPath, enableMLS);
 
     try {
         processor.process();
         std::cout << "Processing completed successfully." << std::endl;
-        processor.saveColorizedPointCloud(outputPath);
+        processor.saveColorizedPointCloud();
         std::cout << "Colorized point cloud saved to: " << outputPath << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
