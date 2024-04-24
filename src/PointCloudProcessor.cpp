@@ -14,6 +14,13 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &odometryPath,
                                          const std::string &imagesFolder,
                                          const std::string &outputPath,
+                                         const bool enableMLS)
+    : pointCloudPath(pointCloudPath), 
+    odometryPath(odometryPath), 
+    imagesFolder(imagesFolder), 
+    outputPath(outputPath),
+    enableMLS(enableMLS)
+                                         const std::string &outputPath,
                                          const bool &enableMLS)
     : pointCloudPath(pointCloudPath),
       odometryPath(odometryPath),
@@ -30,12 +37,14 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     t_lidar2cam << 0.071771636420221, -0.04934294727365431, -0.0677501086411397;
     // R_cam2imu;
     // t_cam2imu;
-    K_camera = {4818.200388954926, 0.0, 2032.4178620390019,
+    K_camera = {4818.200388954926, 0.0, 2032.4178620390019, 
                 0.0, 4819.10345841615, 1535.1895959282901,
                 0.0, 0.0, 1.0};
     D_camera = {0.003043514741045163, 0.06634739187544138, -0.000217681797407554, -0.0006654964142658197, 0};
 
     // Create an instance of the MLSParameters structure to hold the MLS parameters
+    // bool enableMLS = false;
+    MLSParameters mlsParams;
     // MLSParameters mlsParams;
     mlsParams.compute_normals = true;
     mlsParams.polynomial_order = 2;
@@ -50,8 +59,8 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.vgd_voxel_size = 0.005; // 0.001
     mlsParams.vgd_iterations = 4;
     mlsParams.sor_kmean_neighbour = 6;
-    mlsParams.sor_std_dev = 0.3;
-    mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
+    mlsParams.sor_std_dev = 0.3; 
+    mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;   
 }
 
 void PointCloudProcessor::loadPointCloud()
@@ -120,29 +129,16 @@ void PointCloudProcessor::loadPointCloud()
 //     }
 // }
 
+/**
+ * Applies field of view detection and hidden point removal to the given frame's point cloud.
+ * This function transforms the point cloud from the world coordinate system to the camera coordinate system,
+ * removes points that are occluded or hidden by other objects in the scene, and applies point cloud colorization
+ * by projecting the point cloud onto the image frame and assigning the closest color to each point.
+ *
+ * @param frame The frame data containing the point cloud and camera pose.
+ */
 void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData &frame)
 {
-    // Apply FOV detection and hidden point removal
-    // This will likely involve transformations based on camera pose and intrinsics
-    // and removing points that are not visible in the image
-
-    // Assuming you have the camera pose and intrinsics available
-    // You can perform the following steps:
-
-    // 1. Project the 3D points onto the image plane using camera intrinsics and pose
-    //    You can use the pcl::transformPointCloud function to transform the point cloud
-    //    based on the camera pose.
-
-    // 2. Iterate over the projected points and check if they are within the field of view (FOV)
-    //    of the camera. You can define the FOV using the image dimensions and camera intrinsics.
-    //    Remove the points that are outside the FOV.
-
-    // 3. Remove the points that are occluded or hidden by other objects in the scene.
-    //    This can be done by checking the depth values of the projected points and comparing
-    //    them with the depth values of the corresponding pixels in the image.
-    //    If the depth value of a point is greater than the depth value of the pixel, it means
-    //    the point is occluded or hidden and should be removed.
-
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr filteredCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInBodyWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -152,6 +148,7 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     // Eigen::Affine3f t_w2c = Eigen::Affine3f::Identity(); // camera odometry
     // Eigen::Affine3f t_c2w = pcl::getTransformation(pose6d.x, pose6d.y, pose6d.z, pose6d.roll, pose6d.pitch, pose6d.yaw);
 
+    // 1. Transform point cloud from world coordinates to camera pose coordinates
     Pose voPose = getPoseFromOdom(frame.pose);
     Eigen::Isometry3d t_w2c = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d t_c2w = Eigen::Isometry3d::Identity();
@@ -165,7 +162,7 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
     pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c);
 
-    // 1. hidden point removal
+    // 2. hidden point removal
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud = ConvertPCLToOpen3D(cloudInCameraPose);
     std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud_filtered = std::make_shared<open3d::geometry::PointCloud>();
     // std::shared_ptr<open3d::geometry::TriangleMesh> o3d_cloud_filtered_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
@@ -174,17 +171,15 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     Eigen::Vector3d camera_position = {0, 0, 0};
     double radius = 1000.0; // TODO: hardcode
 
-    // Perform hidden point removal
     auto result = o3d_cloud->HiddenPointRemoval(camera_position, radius);
-    // o3d_cloud_filtered = std::get<0>(result);
     auto o3d_cloud_filtered_mesh = std::get<0>(result);
     o3d_cloud_filtered = ConvertMeshToPointCloud(o3d_cloud_filtered_mesh);
 
-    // 2. project 3d points to 2d images
+    // 3. project 3d points to 2d images
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
     generateColorMap(frame, pcl_cloud_filtered, scanInBodyWithRGB);
 
-    // 3. Save the filtered point cloud to a PCD file
+    // 4. Save the colorized pointcloud to seperate PCD file
     // visualizePointCloud(pcl_cloud_filtered);
 
     std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
@@ -196,7 +191,7 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     }
     std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
-    // 4. Transforn colored scan into world frame
+    // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
     pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w);
 
     *cloudInWorldWithRGB += *scanInWorldWithRGB;
