@@ -44,7 +44,7 @@ public:
     void initialize(const MLSParameters& params);
 
     // Method to process the input PCD file
-    void process(pcl::PointCloud<pcl::PointXYZI>::Ptr &cloudAftSmooth);
+    void process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSmooth);
 
 private:
     

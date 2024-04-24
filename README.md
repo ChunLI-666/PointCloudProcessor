@@ -21,3 +21,15 @@ make -j
 /sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic/raw_images/ \
 /sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic/ \
 0
+
+
+
+Segment mask:
+./PointCloudColorization \
+/sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic/scans-clean-mls-clean.pcd \
+/sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic/vo_interpolated_odom.txt \
+/sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic/raw_images/ \
+/sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic/mask_select/ \
+/sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic/ \
+0
+

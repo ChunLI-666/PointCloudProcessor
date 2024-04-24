@@ -19,6 +19,7 @@ public:
         const std::string &pointCloudPath, 
         const std::string &odometryPath, 
         const std::string &imagesFolder, 
+        const std::string &maskImageFolder,
         const std::string &outputPath,
         const bool &enableMLS);
 
@@ -202,6 +203,7 @@ private:
     std::string pointCloudPath;
     std::string odometryPath;
     std::string imagesFolder;
+    std::string maskImageFolder;
     std::string outputPath;
     bool enableMLS;
     MLSParameters mlsParams;
@@ -209,6 +211,7 @@ private:
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraCoord;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithRGB;
+    pcl::PointCloud<PointXYZRGBMask>::Ptr cloudInWorldWithRGBandMask;
 
     std::vector<FrameData> frames;
 
@@ -226,6 +229,11 @@ private:
     void generateColorMap(const FrameData &frame,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
+
+    void generateSegmentMap(const FrameData &frame,
+                          pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color,
+                          pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented);
+
     void visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud);
     // Pose6D getPose6DFromOdom(const Pose &pose);
     // Pose getPoseFromOdom(const Pose &pose);

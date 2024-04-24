@@ -3,18 +3,25 @@
 #include <string>
 
 int main(int argc, char** argv) {
-    if (argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " <point_cloud_path> <odometry_path> <images_folder> <output_path> <enableMLS>" << std::endl;
+    if (argc != 7) {
+        std::cerr << "Usage: " << argv[0] << " <point_cloud_path> <odometry_path> <images_folder> <segment_images_folder> <output_path> <enableMLS>" << std::endl;
         return -1;
     }
 
     std::string pointCloudPath = argv[1];
     std::string odometryPath = argv[2];
     std::string imagesFolder = argv[3];
-    std::string outputPath = argv[4];
-    bool enableMLS = std::stoi(argv[5]);
+    std::string maskImageFolder = argv[4];
+    std::string outputPath = argv[5];
+    bool enableMLS = std::stoi(argv[6]);
 
-    PointCloudProcessor processor(pointCloudPath, odometryPath, imagesFolder, outputPath, enableMLS);
+    PointCloudProcessor processor(
+        pointCloudPath, 
+        odometryPath, 
+        imagesFolder,
+        maskImageFolder, 
+        outputPath, 
+        enableMLS);
 
     try {
         processor.process();
