@@ -27,6 +27,8 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
     cloudInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
     cloudInWorldWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
+    cloudInWorldWithMaskandMappedColor.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+    
     R_lidar2cam << -0.99993085, -0.00561199, -0.0103344,
         0.01032389, 0.00189784, -0.99994491,
         0.0056313, -0.99998245, -0.00183977;
@@ -180,6 +182,10 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     // 4. project 3d points to 2d segmentation mask images
     generateSegmentMap(frame, scanInBodyWithRGB, scanInBodyWithRGBandMask);
 
+    // 5. save  
+    generateSegmentMap(frame, scanInBodyWithRGB, scanInBodyWithRGBandMask);
+
+
     // 4. Save the colorized pointcloud to seperate PCD file
     // visualizePointCloud(pcl_cloud_filtered);
 
@@ -284,25 +290,6 @@ void PointCloudProcessor::generateSegmentMap(const FrameData &frame,
         std::cout << "Failed to read image from: " << frame.maskImagePath << std::endl;
         return;
     }
-    // cv::Mat hsv;
-    // cv::cvtColor(rgb, hsv, cv::COLOR_BGR2HSV);
-
-    // // 调整饱和度和亮度
-    // float saturation_scale = 1.0; // 饱和度增加 0%
-    // float brightness_scale = 1.2; // 亮度增加 20%
-    // for (int y = 0; y < hsv.rows; y++)
-    // {
-    //     for (int x = 0; x < hsv.cols; x++)
-    //     {
-    //         hsv.at<cv::Vec3b>(y, x)[1] = cv::saturate_cast<uchar>(hsv.at<cv::Vec3b>(y, x)[1] * saturation_scale);
-    //         hsv.at<cv::Vec3b>(y, x)[2] = cv::saturate_cast<uchar>(hsv.at<cv::Vec3b>(y, x)[2] * brightness_scale);
-    //     }
-    // }
-
-    // // 转换回 BGR 色彩空间
-    // cv::Mat adjusted_image;
-    // cv::cvtColor(hsv, adjusted_image, cv::COLOR_HSV2BGR);
-    // rgb = adjusted_image;
 
     for (int i = 0; i < pc_color->points.size(); i++)
     {
@@ -332,6 +319,55 @@ void PointCloudProcessor::generateSegmentMap(const FrameData &frame,
     }
 }
 
+void PointCloudProcessor::generateSegmentMapWithColor(pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented,
+                                                      pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color)
+{
+    unsigned char r = 0, g = 255, b = 0; // Initialize to middle of the first color segment for safety
+
+    // Jet colormap
+    const int colormapLength = 4;
+    float colormap[colormapLength][3] = {
+        {0, 0, 0.5},
+        {0, 0.5, 1},
+        {0.5, 1, 0.5},
+        {1, 0.5, 0}
+    };
+
+    for (size_t i = 0; i < pc_color_segmented->points.size(); i++)
+    {
+        pcl::PointXYZRGB point_rgb;
+        point_rgb.x = pc_color_segmented->points[i].x;
+        point_rgb.y = pc_color_segmented->points[i].y;
+        point_rgb.z = pc_color_segmented->points[i].z;
+
+        // Map the segmentMask value to RGB using Jet colormap
+        float value = static_cast<float>(pc_color_segmented->points[i].segmentMask) / 255.0f; // Assuming segmentMask is normalized between 0 and 1
+        value = std::min(std::max(value, 0.0f), 1.0f); // Clamp value to range [0, 1] to avoid out-of-bounds access
+
+        for (int j = 0; j < colormapLength - 1; j++)
+        {
+            float start = static_cast<float>(j) / (colormapLength - 1);
+            float end = static_cast<float>(j + 1) / (colormapLength - 1);
+
+            if (value >= start && value < end)
+            {
+                float ratio = (value - start) / (end - start);
+                r = static_cast<uint8_t>(255 * ((colormap[j + 1][0] - colormap[j][0]) * ratio + colormap[j][0]));
+                g = static_cast<uint8_t>(255 * ((colormap[j + 1][1] - colormap[j][1]) * ratio + colormap[j][1]));
+                b = static_cast<uint8_t>(255 * ((colormap[j + 1][2] - colormap[j][2]) * ratio + colormap[j][2]));
+                break;
+            }
+        }
+
+        point_rgb.r = r;
+        point_rgb.g = g;
+        point_rgb.b = b;
+
+        // std::cout << "R: " << static_cast<int>(r) << ", G: " << static_cast<int>(g) << ", B: " << static_cast<int>(b) << std::endl;
+        pc_color->push_back(point_rgb);
+    }
+}
+
 void PointCloudProcessor::colorizePoints()
 {
     // Colorize points based on the projected image coordinates
@@ -344,17 +380,26 @@ void PointCloudProcessor::smoothColors()
 
 void PointCloudProcessor::saveColorizedPointCloud()
 {
-    if (cloudInWorldWithRGB->size() > 0)
+    if (cloudInWorldWithRGBandMask->size() > 0)
     {
-        std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
+        std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
         pcl::PCDWriter pcd_writer;
+
         if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGBandMask) == -1)
         {
             throw std::runtime_error("Couldn't save colorized point cloud.");
         }
         else
         {
-            cout << "All colored cloud saved to: " << cloudInWorldWithRGBDir << endl;
+            cout << "All colored cloud saved to: " << cloudInWorldWithRGBandMask << endl;
+        }
+
+        generateSegmentMapWithColor(cloudInWorldWithRGBandMask, cloudInWorldWithMaskandMappedColor);
+        if(cloudInWorldWithMaskandMappedColor->size() >0)
+        {
+            std::string cloudInWorldWithMaskandMappedColorDir(outputPath + "cloudInWorldWithMaskAndMappedColor.pcd");
+            pcl::PCDWriter pcd_writer_temp;
+            pcd_writer_temp.writeBinary(cloudInWorldWithMaskandMappedColorDir, *cloudInWorldWithMaskandMappedColor);
         }
     }
 }
@@ -398,8 +443,8 @@ void PointCloudProcessor::process()
     bool isKeyframe = true;
     // Initialize keyframe identification variables
     FrameData *previousFrame = nullptr;
-    const double distThreshold = 1.0; // meter
-    const double angThreshold = 25.0; // degree
+    const double distThreshold = 1.0; // meter, 1
+    const double angThreshold = 40.0; // degree. 25
 
     for (const auto &frame : frames)
     {

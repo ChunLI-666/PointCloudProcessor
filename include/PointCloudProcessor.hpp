@@ -184,9 +184,9 @@ public:
         deltaAngle = q_diff.angularDistance(q1) * 180.0 / M_PI;
 
         // Print debug information
-        std::cout << "Frame: " << newFrame.imagePath << std::endl;
-        std::cout << "Distance to last frame: " << deltaDistance << " (threshold: " << distThreshold << ")" << std::endl;
-        std::cout << "Angle to last frame: " << deltaAngle << " (threshold: " << angThreshold << ")" << std::endl;
+        // std::cout << "Frame: " << newFrame.imagePath << std::endl;
+        // std::cout << "Distance to last frame: " << deltaDistance << " (threshold: " << distThreshold << ")" << std::endl;
+        // std::cout << "Angle to last frame: " << deltaAngle << " (threshold: " << angThreshold << ")" << std::endl;
 
 
         if (deltaDistance >= distThreshold)
@@ -195,7 +195,7 @@ public:
             return true;
         }
         else
-            std::cout << "Frame not selected as keyframe.\n" << std::endl;
+            // std::cout << "Frame not selected as keyframe.\n" << std::endl;
             return false;
     }
 
@@ -212,6 +212,8 @@ private:
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraCoord;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithRGB;
     pcl::PointCloud<PointXYZRGBMask>::Ptr cloudInWorldWithRGBandMask;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithMaskandMappedColor;
 
     std::vector<FrameData> frames;
 
@@ -233,6 +235,9 @@ private:
     void generateSegmentMap(const FrameData &frame,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color,
                           pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented);
+    
+    void generateSegmentMapWithColor(pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented,
+                                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
 
     void visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud);
     // Pose6D getPose6DFromOdom(const Pose &pose);
