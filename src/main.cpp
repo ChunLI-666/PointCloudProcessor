@@ -1,73 +1,63 @@
 #include "PointCloudProcessor.hpp"
 #include <iostream>
-#include <string>
+#include <boost/program_options.hpp>
 
-// Function to convert command line string to bool
-std::optional<bool> parseBool(const char* arg) {
-    std::string argStr(arg);
-    if (argStr == "1" || argStr == "true") {
-        return true;
-    } else if (argStr == "0" || argStr == "false") {
-        return false;
-    }
-    return std::nullopt; // Invalid boolean value
-}
-
+namespace po = boost::program_options;
 
 int main(int argc, char** argv) {
-    // Expect at least 4 arguments, and at most 6
-    if (argc < 5 || argc > 7) {
-        std::cerr << "Usage: " << argv[0] << " <point_cloud_path> <odometry_path> <images_folder> [<mask_image_folder>] [<output_path>] [<enableMLS>]" << std::endl;
-        std::cerr << "  point_cloud_path        Path to the point cloud data file." << std::endl;
-        std::cerr << "  odometry_path           Path to odometry data file." << std::endl;
-        std::cerr << "  images_folder           Path to directory containing images." << std::endl;
-        std::cerr << "  mask_image_folder       (Optional) Path to directory for segmented images. Defaults to images_folder if not provided." << std::endl;
-        std::cerr << "  output_path             (Optional) Path to save processed output. Defaults to current directory if not provided." << std::endl;
-        std::cerr << "  enableMLS               (Optional) Enable MLS smoothing. Accepts true/false or 1/0. Defaults to false if not provided." << std::endl;
-        return -1;
-    }
-
-    // std::string pointCloudPath = argv[1];
-    // std::string odometryPath = argv[2];
-    // std::string imagesFolder = argv[3];
-    // std::string maskImageFolder = argv[4];
-    // std::string outputPath = argv[5];
-    // bool enableMLS = std::stoi(argv[6]);
-
-    std::string pointCloudPath = argv[1];
-    std::string odometryPath = argv[2];
-    std::string imagesFolder = argv[3];
-    std::optional<std::string> maskImageFolder = (argc > 4) ? std::optional<std::string>(argv[4]) : std::nullopt;
-    std::optional<std::string> outputPath = (argc > 5) ? std::optional<std::string>(argv[5]) : std::nullopt;
-    std::optional<bool> enableMLS = (argc > 6) ? parseBool(argv[6]) : std::nullopt;
-
-    if (enableMLS == std::nullopt && argc > 6) {
-        std::cerr << "Invalid value for enableMLS. Use 'true' or 'false', or '1' or '0'." << std::endl;
-        return -1;
-    }
-
-    // PointCloudProcessor processor(
-    //     pointCloudPath, 
-    //     odometryPath, 
-    //     imagesFolder,
-    //     maskImageFolder, 
-    //     outputPath, 
-    //     enableMLS);
-
-    PointCloudProcessor processor(
-        pointCloudPath,
-        odometryPath,
-        imagesFolder,
-        maskImageFolder.value_or(imagesFolder), // Use imagesFolder if maskImageFolder is not provided
-        outputPath.value_or("."), // Default output path is the current directory
-        enableMLS.value_or(false) // Default value for enableMLS is false
-    );
-
     try {
-        processor.process();
-        std::cout << "Processing completed successfully." << std::endl;
+        // Define available options
+        po::options_description desc("Allowed options");
+        desc.add_options()
+            ("help,h", "Produce help message") // Show help information
+            ("point_cloud_path,p", po::value<std::string>(), "Path to the point cloud data file")
+            ("odometry_path,o", po::value<std::string>(), "Path to odometry data file")
+            ("images_folder,i", po::value<std::string>(), "Path to directory containing images")
+            ("mask_image_folder,m", po::value<std::string>()->default_value(""), "Path to directory for segmented images")
+            ("output_path,t", po::value<std::string>()->default_value("."), "Path to save processed output")
+            ("enableMLS,e", po::value<bool>()->default_value(false), "Enable MLS smoothing");
+
+        // Store and parse command line arguments
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+
+        // Display help message if needed
+        if (vm.count("help")) {
+            std::cout << desc << "\n";
+            return 1;
+        }
+
+        // Ensure required arguments are present
+        if (vm.count("point_cloud_path") && vm.count("odometry_path") && vm.count("images_folder")) {
+            std::string pointCloudPath = vm["point_cloud_path"].as<std::string>();
+            std::string odometryPath = vm["odometry_path"].as<std::string>();
+            std::string imagesFolder = vm["images_folder"].as<std::string>();
+            
+            // Check if mask_image_folder was provided; if not, set to a default or use imagesFolder
+            std::string maskImageFolder = vm.count("mask_image_folder") ? vm["mask_image_folder"].as<std::string>() : imagesFolder;
+            
+            std::string outputPath = vm["output_path"].as<std::string>();
+            bool enableMLS = vm["enableMLS"].as<bool>();
+
+            PointCloudProcessor processor(
+                pointCloudPath, 
+                odometryPath, 
+                imagesFolder, 
+                maskImageFolder, 
+                outputPath, 
+                enableMLS);
+
+            processor.process();
+            std::cout << "Processing completed successfully." << std::endl;
+        } else {
+            std::cerr << "Error: Missing required arguments." << std::endl;
+            std::cerr << desc << std::endl;
+            return -1;
+        }
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Unhandled Exception reached the top of main: "
+                  << e.what() << ", application will now exit" << std::endl;
         return -2;
     }
 

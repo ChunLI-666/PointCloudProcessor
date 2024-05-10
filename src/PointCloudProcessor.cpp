@@ -58,6 +58,9 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.sor_kmean_neighbour = 6;
     mlsParams.sor_std_dev = 0.3;
     mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
+
+    // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false 
+    enableMaskSegmentation = !maskImageFolder.empty();
 }
 
 void PointCloudProcessor::loadPointCloud()
@@ -179,44 +182,42 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
 
     generateColorMap(frame, pcl_cloud_filtered, scanInBodyWithRGB);
 
-    // 4. project 3d points to 2d segmentation mask images
-    generateSegmentMap(frame, scanInBodyWithRGB, scanInBodyWithRGBandMask);
+    if(enableMaskSegmentation){
+        // 4. project 3d points to 2d segmentation mask images
+        generateSegmentMap(frame, scanInBodyWithRGB, scanInBodyWithRGBandMask);        
 
-    // 5. save  
-    generateSegmentMap(frame, scanInBodyWithRGB, scanInBodyWithRGBandMask);
+        // save the segmented point cloud 
+        std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
+        pcl::PCDWriter pcd_writer;
 
+        if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
+        {
+            throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+        }
+        std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
-    // 4. Save the colorized pointcloud to seperate PCD file
-    // visualizePointCloud(pcl_cloud_filtered);
+        // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
+        pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w);
 
-    // std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
-    // pcl::PCDWriter pcd_writer;
+        *cloudInWorldWithRGBandMask += *scanInWorldWithRGBandMask;
+    }else{
+        // 4. Save the colorized pointcloud to seperate PCD file
+        // visualizePointCloud(pcl_cloud_filtered);
 
-    // if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
-    // {
-    //     throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
-    // }
-    // std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
+        std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
+        pcl::PCDWriter pcd_writer;
 
-    // // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-    // pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w);
+        if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
+        {
+            throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+        }
+        std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
-    // *cloudInWorldWithRGB += *scanInWorldWithRGB;
+        // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
+        pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w);
 
-    // save the segmented point cloud 
-    std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
-    pcl::PCDWriter pcd_writer;
-
-    if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
-    {
-        throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+        *cloudInWorldWithRGB += *scanInWorldWithRGB;
     }
-    std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
-
-    // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-    pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w);
-
-    *cloudInWorldWithRGBandMask += *scanInWorldWithRGBandMask;
 
 }
 
@@ -370,7 +371,7 @@ void PointCloudProcessor::generateSegmentMapWithColor(pcl::PointCloud<PointXYZRG
 
 void PointCloudProcessor::colorizePoints()
 {
-    // Colorize points based on the projected image coordinates
+    // Colorize points based on the projected image coordinates!maskImageFolder.empty()
 }
 
 void PointCloudProcessor::smoothColors()
@@ -380,28 +381,31 @@ void PointCloudProcessor::smoothColors()
 
 void PointCloudProcessor::saveColorizedPointCloud()
 {
-    if (cloudInWorldWithRGBandMask->size() > 0)
-    {
-        std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
-        pcl::PCDWriter pcd_writer;
+    if(enableMaskSegmentation){
+        if (cloudInWorldWithRGBandMask->size() > 0)
+        {
+            std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
+            pcl::PCDWriter pcd_writer;
 
-        if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGBandMask) == -1)
-        {
-            throw std::runtime_error("Couldn't save colorized point cloud.");
-        }
-        else
-        {
-            cout << "All colored cloud saved to: " << cloudInWorldWithRGBandMask << endl;
-        }
+            if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGBandMask) == -1)
+            {
+                throw std::runtime_error("Couldn't save colorized point cloud.");
+            }
+            else
+            {
+                cout << "All colored cloud saved to: " << cloudInWorldWithRGBandMask << endl;
+            }
 
-        generateSegmentMapWithColor(cloudInWorldWithRGBandMask, cloudInWorldWithMaskandMappedColor);
-        if(cloudInWorldWithMaskandMappedColor->size() >0)
-        {
-            std::string cloudInWorldWithMaskandMappedColorDir(outputPath + "cloudInWorldWithMaskAndMappedColor.pcd");
-            pcl::PCDWriter pcd_writer_temp;
-            pcd_writer_temp.writeBinary(cloudInWorldWithMaskandMappedColorDir, *cloudInWorldWithMaskandMappedColor);
+            generateSegmentMapWithColor(cloudInWorldWithRGBandMask, cloudInWorldWithMaskandMappedColor);
+            if(cloudInWorldWithMaskandMappedColor->size() >0)
+            {
+                std::string cloudInWorldWithMaskandMappedColorDir(outputPath + "cloudInWorldWithMaskAndMappedColor.pcd");
+                pcl::PCDWriter pcd_writer_temp;
+                pcd_writer_temp.writeBinary(cloudInWorldWithMaskandMappedColorDir, *cloudInWorldWithMaskandMappedColor);
+            }
         }
     }
+
 }
 
 void PointCloudProcessor::loadImagesAndOdometry()
@@ -424,13 +428,17 @@ void PointCloudProcessor::loadImagesAndOdometry()
 
         // TODO Implement logic to find the mask image path for the given timestamp
 
-        std::string maskImagePath = maskImageFolder + std::to_string(timestamp) + ".png";
-        if (!imagePath.empty())
-        {   
-            FrameData frame(imagePath, timestamp, pose);
-            frame.addSegmentImage(maskImagePath);
-            // frames.emplace_back(imagePath, timestamp, pose);
-            frames.push_back(frame);
+        if (enableMaskSegmentation)
+        {
+            std::string maskImagePath = maskImageFolder + std::to_string(timestamp) + ".png";
+            if (!imagePath.empty())
+            {   
+                FrameData frame(imagePath, timestamp, pose);
+                frame.addSegmentImage(maskImagePath);
+                frames.push_back(frame);
+            }
+        }else{
+            frames.emplace_back(imagePath, timestamp, pose);
         }
     }
 }
