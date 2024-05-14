@@ -389,11 +389,11 @@ void PointCloudProcessor::saveColorizedPointCloud()
 
             if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGBandMask) == -1)
             {
-                throw std::runtime_error("Couldn't save colorized point cloud.");
+                throw std::runtime_error("Couldn't save colorized and segment colored point cloud.");
             }
             else
             {
-                cout << "All colored cloud saved to: " << cloudInWorldWithRGBandMask << endl;
+                cout << "All colored and segment colored cloud saved to: " << cloudInWorldWithRGBandMask << endl;
             }
 
             generateSegmentMapWithColor(cloudInWorldWithRGBandMask, cloudInWorldWithMaskandMappedColor);
@@ -404,6 +404,22 @@ void PointCloudProcessor::saveColorizedPointCloud()
                 pcd_writer_temp.writeBinary(cloudInWorldWithMaskandMappedColorDir, *cloudInWorldWithMaskandMappedColor);
             }
         }
+    }else{
+        if (cloudInWorldWithRGB->size() > 0)
+        {
+            std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
+            pcl::PCDWriter pcd_writer;
+
+            if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGB) == -1)
+            {
+                throw std::runtime_error("Couldn't save colorized point cloud.");
+            }
+            else
+            {
+                cout << "All colored cloud saved to: " << cloudInWorldWithRGB << endl;
+            }
+        }
+    
     }
 
 }

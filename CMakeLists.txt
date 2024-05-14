@@ -11,6 +11,7 @@ set(Open3D_DIR ${HOME}/open3d_install/lib/cmake/Open3D)
 find_package(PCL 1.8 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Open3D REQUIRED)
+find_package(Boost 1.65 REQUIRED COMPONENTS program_options)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
@@ -32,9 +33,11 @@ endif()
 
 include_directories(${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS} include)
 
+include_directories(${Boost_INCLUDE_DIRS})
+
 add_definitions(${PCL_DEFINITIONS})
 
 add_executable(${PROJECT_NAME} src/main.cpp src/FrameData.cpp src/PointCloudProcessor.cpp src/RGBFrames.cpp src/cloudSmooth.cpp)
 
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES} Open3D::Open3D)
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES} ${Boost_LIBRARIES} Open3D::Open3D)
 # target_link_libraries(${PROJECT_NAME} PRIVATE Open3D::Open3D)
