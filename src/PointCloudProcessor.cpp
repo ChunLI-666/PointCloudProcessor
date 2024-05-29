@@ -182,14 +182,15 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     auto o3d_cloud_filtered_mesh = std::get<0>(result);
     o3d_cloud_filtered = ConvertMeshToPointCloud(o3d_cloud_filtered_mesh);
 
-    // optional: use NID metrics to optimize pose
-    if(enable_NID_optimize){
-        vlcal::VisualLiDARCalibration calib(data_path, vm);
-        calib.calibrate(vm);
-    }
-
     // 3. project 3d points to 2d images
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
+
+
+    // optional: use NID metrics to optimize pose
+    if(enable_NID_optimize){
+        vlcal::VisualLiDARCalibration calib(K_camera, D_camera, pcl_cloud_filtered);
+        calib.calibrate(vm);
+    }
 
     generateColorMap(frame, pcl_cloud_filtered, scanInBodyWithRGB);
 
