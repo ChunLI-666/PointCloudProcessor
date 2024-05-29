@@ -206,7 +206,7 @@ private:
     std::string maskImageFolder;
     std::string outputPath;
     bool enableMLS;
-    bool enableMaskSegmentation = false;
+    bool enableNIDOptimize;
     MLSParameters mlsParams;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;

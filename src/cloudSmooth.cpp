@@ -8,15 +8,19 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+
 #include <boost/filesystem.hpp>
 #include <boost/asio/thread_pool.hpp>
+
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/surface/mls.h>
+
 #include "cloudSmooth.hpp"
+
 
 CloudSmooth::CloudSmooth(const std::string &input_file_path)
     : input_file_path_(input_file_path),

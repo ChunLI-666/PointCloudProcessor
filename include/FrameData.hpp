@@ -36,9 +36,13 @@ class FrameData
 {
 public:
   Pose pose;
-  cv::Mat image;
+  cv::Mat image; //raw image
   std::string imagePath;
-  double imageTimestamp; // Add this line
+  double imageTimestamp; 
+
+  cv::Mat segmentImage;
+  std::string segmentImagePath;
+  
 
   cv::Mat maskImage;
   std::string maskImagePath;
