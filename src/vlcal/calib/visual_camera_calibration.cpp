@@ -152,7 +152,4 @@ Eigen::Isometry3d VisualCameraCalibration::estimate_pose_bfgs(const Eigen::Isome
   return Eigen::Isometry3d(T_camera_lidar.matrix());
 
 }
-
-
-
 }

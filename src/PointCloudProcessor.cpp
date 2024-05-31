@@ -336,15 +336,15 @@ void PointCloudProcessor::generateSegmentMapWithColor(pcl::PointCloud<PointXYZRG
     }
 }
 
-void PointCloudProcessor::colorizePoints()
-{
-    // Colorize points based on the projected image coordinates!maskImageFolder.empty()
-}
+// void PointCloudProcessor::colorizePoints()
+// {
+//     // Colorize points based on the projected image coordinates!maskImageFolder.empty()
+// }
 
-void PointCloudProcessor::smoothColors()
-{
-    // Smooth the colors of the point cloud
-}
+// void PointCloudProcessor::smoothColors()
+// {
+//     // Smooth the colors of the point cloud
+// }
 
 void PointCloudProcessor::saveColorizedPointCloud()
 {
