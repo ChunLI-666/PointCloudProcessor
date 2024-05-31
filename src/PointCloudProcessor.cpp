@@ -19,19 +19,19 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &outputPath,
                                          const bool &enableMLS,
                                          const bool enableNIDOptimize)
-    : pointCloudPath(pointCloudPath), 
-    odometryPath(odometryPath), 
-    imagesFolder(imagesFolder),
-    maskImageFolder(maskImageFolder), 
-    outputPath(outputPath),
-    enableMLS(enableMLS)
+    : pointCloudPath(pointCloudPath),
+      odometryPath(odometryPath),
+      imagesFolder(imagesFolder),
+      maskImageFolder(maskImageFolder),
+      outputPath(outputPath),
+      enableMLS(enableMLS)
 
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
     cloudInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
     cloudInWorldWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
     cloudInWorldWithMaskandMappedColor.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
-    
+
     R_lidar2cam << -0.99993085, -0.00561199, -0.0103344,
         0.01032389, 0.00189784, -0.99994491,
         0.0056313, -0.99998245, -0.00183977;
@@ -64,7 +64,7 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.sor_kmean_neighbour = 60;
     mlsParams.sor_std_dev = 0.5;
 
-    // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false 
+    // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false
     enableMaskSegmentation = !maskImageFolder.empty();
 }
 
@@ -87,52 +87,6 @@ void PointCloudProcessor::loadPointCloud()
         std::cout << "Loaded point cloud with " << cloud->points.size() << " points." << std::endl;
     }
 }
-
-// void PointCloudProcessor::transformCloudToCamera()
-// {
-
-//     Eigen::Affine3f transform = Eigen::Affine3f::Identity(); // Replace with actual transformation
-//     transform.linear() = R_lidar2cam.cast<float>();
-//     transform.translation() = t_lidar2cam.cast<float>();
-
-//     pcl::transformPointCloud(*cloud, *cloudInCameraCoord, transform);
-
-// }
-
-// void PointCloudProcessor::loadVisualOdometry()
-// {
-//     std::ifstream voFile(odometryPath);
-//     std::string line;
-//     while (getline(voFile, line))
-//     {
-//         std::istringstream iss(line);
-//         double timestamp, x, y, z, qw, qx, qy, qz;
-//         if (!(iss >> timestamp >> x >> y >> z >> qw >> qx >> qy >> qz))
-//         {
-//             break;
-//         }
-//         // Store or process this odometry data
-//     }
-// }
-
-// void PointCloudProcessor::loadImages()
-// {
-//     // Load images from imagesFolder
-//     // This might involve iterating over files in the folder and loading them as cv::Mat
-//     std::vector<cv::Mat> images;
-//     cv::String folderPath(imagesFolder + "/*.jpg"); // Assuming images are in JPEG format
-//     cv::glob(folderPath, images, false);            // Get list of image file paths
-
-//     for (const auto &imagePath : images)
-//     {
-//         cv::Mat image = cv::imread(imagePath); // Load image using OpenCV
-//         if (image.empty())
-//         {
-//             throw std::runtime_error("Couldn't read image file: " + imagePath);
-//         }
-//         // Process the image or store it for later use
-//     }
-// }
 
 /**
  * Applies field of view detection and hidden point removal to the given frame's point cloud.
@@ -185,20 +139,21 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     // 3. project 3d points to 2d images
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
 
-
     // optional: use NID metrics to optimize pose
-    if(enable_NID_optimize){
+    if (enable_NID_optimize)
+    {
         vlcal::VisualLiDARCalibration calib(K_camera, D_camera, pcl_cloud_filtered);
         calib.calibrate(vm);
     }
 
     generateColorMap(frame, pcl_cloud_filtered, scanInBodyWithRGB);
 
-    if(enableMaskSegmentation){
+    if (enableMaskSegmentation)
+    {
         // 4. project 3d points to 2d segmentation mask images
-        generateSegmentMap(frame, scanInBodyWithRGB, scanInBodyWithRGBandMask);        
+        generateSegmentMap(frame, scanInBodyWithRGB, scanInBodyWithRGBandMask);
 
-        // save the segmented point cloud 
+        // save the segmented point cloud
         std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
         pcl::PCDWriter pcd_writer;
 
@@ -212,7 +167,9 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
         pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w);
 
         *cloudInWorldWithRGBandMask += *scanInWorldWithRGBandMask;
-    }else{
+    }
+    else
+    {
         // 4. Save the colorized pointcloud to seperate PCD file
         // visualizePointCloud(pcl_cloud_filtered);
 
@@ -230,7 +187,6 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
 
         *cloudInWorldWithRGB += *scanInWorldWithRGB;
     }
-
 }
 
 void PointCloudProcessor::generateColorMap(const FrameData &frame,
@@ -239,7 +195,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 {
     std::cout << "Reading image from: " << frame.imagePath << std::endl;
     cv::Mat rgb = cv::imread(frame.imagePath);
-     if (rgb.empty())
+    if (rgb.empty())
     {
         throw std::runtime_error("Failed to read image from: " + frame.imagePath);
         return;
@@ -291,8 +247,8 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
 }
 
 void PointCloudProcessor::generateSegmentMap(const FrameData &frame,
-                                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color,
-                                           pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented)
+                                             pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color,
+                                             pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented)
 {
 
     std::cout << "Reading segment mask image from: " << frame.maskImagePath << std::endl;
@@ -343,8 +299,7 @@ void PointCloudProcessor::generateSegmentMapWithColor(pcl::PointCloud<PointXYZRG
         {0, 0, 0.5},
         {0, 0.5, 1},
         {0.5, 1, 0.5},
-        {1, 0.5, 0}
-    };
+        {1, 0.5, 0}};
 
     for (size_t i = 0; i < pc_color_segmented->points.size(); i++)
     {
@@ -355,7 +310,7 @@ void PointCloudProcessor::generateSegmentMapWithColor(pcl::PointCloud<PointXYZRG
 
         // Map the segmentMask value to RGB using Jet colormap
         float value = static_cast<float>(pc_color_segmented->points[i].segmentMask) / 255.0f; // Assuming segmentMask is normalized between 0 and 1
-        value = std::min(std::max(value, 0.0f), 1.0f); // Clamp value to range [0, 1] to avoid out-of-bounds access
+        value = std::min(std::max(value, 0.0f), 1.0f);                                        // Clamp value to range [0, 1] to avoid out-of-bounds access
 
         for (int j = 0; j < colormapLength - 1; j++)
         {
@@ -393,7 +348,8 @@ void PointCloudProcessor::smoothColors()
 
 void PointCloudProcessor::saveColorizedPointCloud()
 {
-    if(enableMaskSegmentation){
+    if (enableMaskSegmentation)
+    {
         if (cloudInWorldWithRGBandMask->size() > 0)
         {
             std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
@@ -409,14 +365,16 @@ void PointCloudProcessor::saveColorizedPointCloud()
             }
 
             generateSegmentMapWithColor(cloudInWorldWithRGBandMask, cloudInWorldWithMaskandMappedColor);
-            if(cloudInWorldWithMaskandMappedColor->size() >0)
+            if (cloudInWorldWithMaskandMappedColor->size() > 0)
             {
                 std::string cloudInWorldWithMaskandMappedColorDir(outputPath + "cloudInWorldWithMaskAndMappedColor.pcd");
                 pcl::PCDWriter pcd_writer_temp;
                 pcd_writer_temp.writeBinary(cloudInWorldWithMaskandMappedColorDir, *cloudInWorldWithMaskandMappedColor);
             }
         }
-    }else{
+    }
+    else
+    {
         if (cloudInWorldWithRGB->size() > 0)
         {
             std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
@@ -431,9 +389,7 @@ void PointCloudProcessor::saveColorizedPointCloud()
                 cout << "All colored cloud saved to: " << cloudInWorldWithRGB << endl;
             }
         }
-    
     }
-
 }
 
 void PointCloudProcessor::loadImagesAndOdometry()
@@ -460,12 +416,14 @@ void PointCloudProcessor::loadImagesAndOdometry()
         {
             std::string maskImagePath = maskImageFolder + std::to_string(timestamp) + ".png";
             if (!imagePath.empty())
-            {   
+            {
                 FrameData frame(imagePath, timestamp, pose);
                 frame.addSegmentImage(maskImagePath);
                 frames.push_back(frame);
             }
-        }else{
+        }
+        else
+        {
             frames.emplace_back(imagePath, timestamp, pose);
         }
     }
@@ -477,16 +435,17 @@ void PointCloudProcessor::process()
     loadImagesAndOdometry();
 
     // create the output folder "filtered_pcd/"
-    {    
+    {
         std::string filteredPcdFolderPath = outputPath + "filtered_pcd/";
 
         std::filesystem::path outputPcdDir(filteredPcdFolderPath);
 
-        if (std::filesystem::exists(outputPcdDir)) {
-            std::filesystem::remove_all(outputPcdDir);  // Delete the folder and all its contents
+        if (std::filesystem::exists(outputPcdDir))
+        {
+            std::filesystem::remove_all(outputPcdDir); // Delete the folder and all its contents
         }
-        
-        std::filesystem::create_directories(outputPcdDir);  // Create the folder (and any necessary parent directories)
+
+        std::filesystem::create_directories(outputPcdDir); // Create the folder (and any necessary parent directories)
     }
 
     bool isKeyframe = true;
@@ -511,15 +470,6 @@ void PointCloudProcessor::process()
     }
     saveColorizedPointCloud();
 }
-
-// std::string PointCloudProcessor::findImagePathForTimestamp(double timestamp)
-// {
-//     // Implement logic to match image file names to timestamps.
-//     // This might involve enumerating files in imagesFolder and finding the closest match.
-//     // Returning an empty string if no match is found.
-
-//     return ""; // Placeholder
-// }
 
 void PointCloudProcessor::visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud)
 {
