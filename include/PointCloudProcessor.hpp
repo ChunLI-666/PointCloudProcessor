@@ -16,9 +16,9 @@ class PointCloudProcessor
 {
 public:
     PointCloudProcessor(
-        const std::string &pointCloudPath, 
-        const std::string &odometryPath, 
-        const std::string &imagesFolder, 
+        const std::string &pointCloudPath,
+        const std::string &odometryPath,
+        const std::string &imagesFolder,
         const std::string &maskImageFolder,
         const std::string &outputPath,
         const bool &enableMLS);
@@ -188,10 +188,10 @@ public:
         // std::cout << "Distance to last frame: " << deltaDistance << " (threshold: " << distThreshold << ")" << std::endl;
         // std::cout << "Angle to last frame: " << deltaAngle << " (threshold: " << angThreshold << ")" << std::endl;
 
-
         if (deltaDistance >= distThreshold)
         {
-            std::cout << "Selecting frame as keyframe.\n" << std::endl;
+            std::cout << "Selecting frame as keyframe.\n"
+                      << std::endl;
             return true;
         }
         else
@@ -226,26 +226,26 @@ private:
     std::vector<double> D_camera{5, 0.0};
 
     void loadPointCloud();
-    void loadVisualOdometry();
-    void loadImages();
+    // void loadVisualOdometry();
+    // void loadImages();
     void applyFOVDetectionAndHiddenPointRemoval(const FrameData &frame);
     void generateColorMap(const FrameData &frame,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
 
     void generateSegmentMap(const FrameData &frame,
-                          pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color,
-                          pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented);
-    
+                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color,
+                            pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented);
+
     void generateSegmentMapWithColor(pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented,
-                                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
+                                     pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
 
     void visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud);
     // Pose6D getPose6DFromOdom(const Pose &pose);
     // Pose getPoseFromOdom(const Pose &pose);
     void loadImagesAndOdometry();
-    void colorizePoints();
-    void smoothColors();
+    // void colorizePoints();
+    // void smoothColors();
     void saveColorizedPointCloud();
     // void generateColorMap();
 };
