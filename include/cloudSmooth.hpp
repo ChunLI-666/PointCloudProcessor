@@ -14,7 +14,7 @@ enum UpsamplingMethodType {
     METHOD_SAMPLE_LOCAL_PLANE,
     METHOD_RANDOM_UNIFORM_DENSITY,
     METHOD_VOXEL_GRID_DILATION,
-    METHOD_NONE
+    None
 };
 
 struct MLSParameters {

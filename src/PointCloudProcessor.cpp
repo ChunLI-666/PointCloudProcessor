@@ -6,7 +6,7 @@
 #include <pcl/common/transforms.h>
 #include <iostream>
 #include <fstream> // For reading odometry file
-
+#include <filesystem>
 #include <Eigen/Dense> // Add missing include statement for Eigen library
 #include <tf/transform_datatypes.h>
 
@@ -48,16 +48,18 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     // mlsParams.search_radius = 0.03;
     mlsParams.search_radius = 0.02;
     mlsParams.sqr_gauss_param = 0.0009;
-    mlsParams.num_threads = 12;
+    mlsParams.num_threads = 24;
     mlsParams.slp_upsampling_radius = 0.05;
     mlsParams.slp_upsampling_stepsize = 0.01;
     mlsParams.rud_point_density = 50;
     // mlsParams.vgd_voxel_size = 0.001; // 0.001
     mlsParams.vgd_voxel_size = 0.005; // 0.001
-    mlsParams.vgd_iterations = 4;
-    mlsParams.sor_kmean_neighbour = 6;
-    mlsParams.sor_std_dev = 0.3;
+    mlsParams.vgd_iterations = 3;
+    // mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
     mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
+
+    mlsParams.sor_kmean_neighbour = 60;
+    mlsParams.sor_std_dev = 0.5;
 
     // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false 
     enableMaskSegmentation = !maskImageFolder.empty();
@@ -464,11 +466,24 @@ void PointCloudProcessor::process()
     loadPointCloud();
     loadImagesAndOdometry();
 
+    // create the output folder "filtered_pcd/"
+    {    
+        std::string filteredPcdFolderPath = outputPath + "filtered_pcd/";
+
+        std::filesystem::path outputPcdDir(filteredPcdFolderPath);
+
+        if (std::filesystem::exists(outputPcdDir)) {
+            std::filesystem::remove_all(outputPcdDir);  // Delete the folder and all its contents
+        }
+        
+        std::filesystem::create_directories(outputPcdDir);  // Create the folder (and any necessary parent directories)
+    }
+
     bool isKeyframe = true;
     // Initialize keyframe identification variables
     FrameData *previousFrame = nullptr;
-    const double distThreshold = 1.0; // meter, 1
-    const double angThreshold = 40.0; // degree. 25
+    const double distThreshold = 0.8; // meter, 1
+    const double angThreshold = 30.0; // degree. 25
 
     for (const auto &frame : frames)
     {
