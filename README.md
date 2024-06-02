@@ -35,8 +35,8 @@ Segment mask:
 
 
 ./PointCloudColorization \
---point_cloud_path /sandbox/Documents/zhongnan/fastlio-color/20240507/_2024-05-07-10-57-20-reconstruction/fast_lio_result/scans.pcd \
---odometry_path /sandbox/Documents/zhongnan/fastlio-color/20240507/_2024-05-07-10-57-20-reconstruction/fast_lio_result/vo_interpolated_odom.txt \
---images_folder /sandbox/Documents/zhongnan/fastlio-color/20240507/_2024-05-07-10-57-20-reconstruction/fast_lio_result/raw_images/ \
---output_path /sandbox/Documents/zhongnan/fastlio-color/20240507/_2024-05-07-10-57-20-reconstruction/fast_lio_result/ \
---enableMLS 1
+--point_cloud_path /sandbox/Documents/zhongnan/fastlio-color/20240516/_2024-05-16-17-22-50-reconstruction_new/fast_lio_result/scans.pcd \
+--odometry_path /sandbox/Documents/zhongnan/fastlio-color/20240516/_2024-05-16-17-22-50-reconstruction_new/fast_lio_result/vo_interpolated_odom.txt \
+--images_folder /sandbox/Documents/zhongnan/fastlio-color/20240516/_2024-05-16-17-22-50-reconstruction_new/fast_lio_result/raw_images/ \
+--output_path /sandbox/Documents/zhongnan/fastlio-color/20240516/_2024-05-16-17-22-50-reconstruction_new/fast_lio_result/ \
+--enableMLS 0
