@@ -98,16 +98,15 @@ void PointCloudProcessor::loadPointCloud()
  */
 void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData &frame)
 {
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZRGB>());
+    // 0. Init objects
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZI>());
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInBodyWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<PointXYZRGBMask>::Ptr scanInBodyWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInWorldWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
     pcl::PointCloud<PointXYZRGBMask>::Ptr scanInWorldWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
-
-    // Pose6D pose6d = getOdom(frame.pose);
-    // Eigen::Affine3f t_w2c = Eigen::Affine3f::Identity(); // camera odometry
-    // Eigen::Affine3f t_c2w = pcl::getTransformation(pose6d.x, pose6d.y, pose6d.z, pose6d.roll, pose6d.pitch, pose6d.yaw);
 
     // 1. Transform point cloud from world coordinates to camera pose coordinates
     Pose voPose = getPoseFromOdom(frame.pose);
@@ -123,27 +122,34 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
     pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c);
 
-    // 2. hidden point removal
-    std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud = ConvertPCLToOpen3D(cloudInCameraPose);
-    std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud_filtered = std::make_shared<open3d::geometry::PointCloud>();
-    // std::shared_ptr<open3d::geometry::TriangleMesh> o3d_cloud_filtered_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
+    // ////// 2. hidden point removal via open3d
+    // std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud = ConvertPCLToOpen3D(cloudInCameraPose);
+    // std::shared_ptr<open3d::geometry::PointCloud> o3d_cloud_filtered = std::make_shared<open3d::geometry::PointCloud>();
+    // //// std::shared_ptr<open3d::geometry::TriangleMesh> o3d_cloud_filtered_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
 
-    // Eigen::Vector3d camera_position = {voPose.x, voPose.y, voPose.z};
-    Eigen::Vector3d camera_position = {0, 0, 0};
-    double radius = 1000.0; // TODO: hardcode
+    // //// Eigen::Vector3d camera_position = {voPose.x, voPose.y, voPose.z};
+    // Eigen::Vector3d camera_position = {0, 0, 0};
+    // double radius = 1000.0; // TODO: hardcode
 
-    auto result = o3d_cloud->HiddenPointRemoval(camera_position, radius);
-    auto o3d_cloud_filtered_mesh = std::get<0>(result);
-    o3d_cloud_filtered = ConvertMeshToPointCloud(o3d_cloud_filtered_mesh);
+    // auto result = o3d_cloud->HiddenPointRemoval(camera_position, radius);
+    // auto o3d_cloud_filtered_mesh = std::get<0>(result);
+    // o3d_cloud_filtered = ConvertMeshToPointCloud(o3d_cloud_filtered_mesh);
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
+
+    ////// 2.1 hidden point removal via NID and view_culling.cpp
+    pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud_filtered(new pcl::PointCloud<pcl::PointXYZI>());
+    // pcl::copyPointCloud(*cloudInCameraPose, *pcl_cloud_filtered);
 
     // 3. project 3d points to 2d images
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered = ConvertOpen3DToPCL(o3d_cloud_filtered);
 
-    // optional: use NID metrics to optimize pose
+    // 3.1(optional): use NID metrics to optimize pose
     if (enable_NID_optimize)
     {
-        vlcal::VisualLiDARCalibration calib(K_camera, D_camera, pcl_cloud_filtered);
-        calib.calibrate(vm);
+        vlcal::VisualLiDARCalibration calib(K_camera, D_camera, pcl_cloud_filtered, frame);
+        calib.calibrate(*cloudInCameraPose, *pcl_cloud_filtered);
+
+        // calib.implementOptimizedPose(*pcl_cloud_filtered); //TODO: add api into VisualLiDARCalibration
+
     }
 
     generateColorMap(frame, pcl_cloud_filtered, scanInBodyWithRGB);

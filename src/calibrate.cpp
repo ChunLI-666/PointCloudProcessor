@@ -5,6 +5,8 @@
 #include <boost/program_options.hpp>
 
 #include <vlcal/calib/visual_camera_calibration.hpp>
+#include "FrameData.hpp"
+
 
 namespace vlcal
 {
@@ -15,10 +17,13 @@ namespace vlcal
     VisualLiDARCalibration(const std::string &camera_model,
                            const std::vector<double> &K_camera,
                            const std::vector<double> &D_camera,
-                           const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &point_cloud)
+                           const pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud,
+                           const FrameData &frame)
         : camera_model(camera_model),
           K_camera(K_camera),
-          D_camera(D_camera)
+          D_camera(D_camera),
+          pcl_cloud_filtered(point_cloud),
+          frame(frame)
     {
 
       // TODO: add camera model, intrinsics, distortion_coeffs
@@ -28,7 +33,7 @@ namespace vlcal
       proj = camera::create_camera(camera_model, intrinsics, distortion_coeffs);
     }
 
-    void calibrate()
+    void calibrate(const pcl::PointCloud<pcl::PointXYZI> &point_cloud_origin, pcl::PointCloud<pcl::PointXYZI> &point_cloud_out)
     {
       std::vector<double> init_values; // vector of init T_lidar_camera
 
@@ -66,7 +71,7 @@ namespace vlcal
         std::cerr << "warning: unknown registration type " << registration_type << std::endl;
       }
 
-      VisualCameraCalibration calib(proj, dataset, params);
+      VisualCameraCalibration calib(proj, frame, params); //TODO: remove dataset parameters 
 
       std::atomic_bool optimization_terminated = false;
       Eigen::Isometry3d T_camera_lidar = init_T_camera_lidar;
@@ -85,62 +90,86 @@ namespace vlcal
       const std::vector<double> T_lidar_camera_values = {trans.x(), trans.y(), trans.z(), quat.x(), quat.y(), quat.z(), quat.w()};
 
       // TODO： Add api to output the optimized T into the colorization pipeline
+      // Clear the output point cloud
+      point_cloud_out.clear();
+      
+      // Iterate through each point in the original point cloud, copy the intensity and transformed point,
+      // and push back transformed point into the point_cloud_out  
+      for (const auto& point: point_cloud_origin.points){
+        // Transform the point from lidar frame to camera frame with the optimized T_lidar_camera
+        Eigen::Vector3d pt_lidar(point.x, point.y, point.z);
+        Eigen::Vector3d pt_transformed = T_licar_camera * pt_lidar;
+
+        pcl::PointXYZI transformed_point;
+        transformed_point.x =  pt_transformed.x();
+        transformed_point.y = pt_transformed.y();
+        transformed_point.z = pt_transformed.z();
+        transformed_point.intensity = point.intensity;
+
+        point_cloud_out.push_back(transformed_point); 
+      }
     }
+
+    // void implementOptimizedPose(pcl::PointCloud<pcl::PointXYZI> pcl_cloud_filtered){
+      
+      
+    // }
 
   private:
     const std::string camera_model;
     const std::vector<double> K_camera;
     const std::vector<double> D_camera;
-    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered;
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud_filtered;
     camera::GenericCameraBase::ConstPtr proj;
-    std::vector<VisualLiDARData::ConstPtr> dataset;
+    // std::vector<VisualLiDARData::ConstPtr> dataset;
+    const FrameData frame;
   };
 
 } // namespace vlcal
 
-int main(int argc, char **argv)
-{
-  using namespace boost::program_options;
-  options_description description("calibrate");
+// int main(int argc, char **argv)
+// {
+//   using namespace boost::program_options;
+//   options_description description("calibrate");
 
-  // clang-format off
-  description.add_options()
-    ("help", "produce help message")
-    ("data_path", value<std::string>(), "directory that contains preprocessed data")
-    ("first_n_bags", value<int>(), "use only the first N bags (just for evaluation)")
-    ("disable_culling", "disable depth buffer-based hidden points removal")
-    ("nid_bins", value<int>()->default_value(16), "Number of histogram bins for NID")
-    ("registration_type", value<std::string>()->default_value("nid_bfgs"), "nid_bfgs or nid_nelder_mead")
-    ("nelder_mead_init_step", value<double>()->default_value(1e-3), "Nelder-mead initial step size")
-    ("nelder_mead_convergence_criteria", value<double>()->default_value(1e-8), "Nelder-mead convergence criteria")
-    ("auto_quit", "automatically quit after calibration")
-    ("background", "hide viewer and run calibration in background")
-  ;
-  // clang-format on
+//   // clang-format off
+//   description.add_options()
+//     ("help", "produce help message")
+//     ("data_path", value<std::string>(), "directory that contains preprocessed data")
+//     ("first_n_bags", value<int>(), "use only the first N bags (just for evaluation)")
+//     ("disable_culling", "disable depth buffer-based hidden points removal")
+//     ("nid_bins", value<int>()->default_value(16), "Number of histogram bins for NID")
+//     ("registration_type", value<std::string>()->default_value("nid_bfgs"), "nid_bfgs or nid_nelder_mead")
+//     ("nelder_mead_init_step", value<double>()->default_value(1e-3), "Nelder-mead initial step size")
+//     ("nelder_mead_convergence_criteria", value<double>()->default_value(1e-8), "Nelder-mead convergence criteria")
+//     ("auto_quit", "automatically quit after calibration")
+//     ("background", "hide viewer and run calibration in background")
+//   ;
+//   // clang-format on
 
-  positional_options_description p;
-  p.add("data_path", 1);
+//   positional_options_description p;
+//   p.add("data_path", 1);
 
-  variables_map vm;
-  store(command_line_parser(argc, argv).options(description).positional(p).run(), vm);
-  notify(vm);
+//   variables_map vm;
+//   store(command_line_parser(argc, argv).options(description).positional(p).run(), vm);
+//   notify(vm);
 
-  if (vm.count("help") || !vm.count("data_path"))
-  {
-    std::cout << description << std::endl;
-    return 0;
-  }
+//   if (vm.count("help") || !vm.count("data_path"))
+//   {
+//     std::cout << description << std::endl;
+//     return 0;
+//   }
 
-  const std::string data_path = vm["data_path"].as<std::string>();
+//   const std::string data_path = vm["data_path"].as<std::string>();
 
-  // params should include:
-  // 1. camera model, camera intrinsics, distortion coefficients
-  // 2. initial guess of T_lidar_camera, in this case is T_lidar_camera = I, since point cloud is in camera frame
-  // 3. Visible point clouds
-  // 4. raw image frame
+//   // params should include:
+//   // 1. camera model, camera intrinsics, distortion coefficients
+//   // 2. initial guess of T_lidar_camera, in this case is T_lidar_camera = I, since point cloud is in camera frame
+//   // 3. Visible point clouds
+//   // 4. raw image frame
 
-  vlcal::VisualLiDARCalibration calib(data_path, vm);
-  calib.calibrate(vm);
+//   vlcal::VisualLiDARCalibration calib(data_path, vm);
+//   calib.calibrate(vm);
 
-  return 0;
-}
+//   return 0;
+// }

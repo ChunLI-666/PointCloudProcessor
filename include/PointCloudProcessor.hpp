@@ -27,7 +27,7 @@ public:
 
     // Function to convert a PCL Point Cloud to an Open3D Point Cloud
     std::shared_ptr<open3d::geometry::PointCloud> ConvertPCLToOpen3D(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pcl_cloud)
-    {
+        {
         // Create an Open3D PointCloud object
         auto o3d_cloud = std::make_shared<open3d::geometry::PointCloud>();
 
@@ -209,7 +209,8 @@ private:
     bool enableNIDOptimize;
     MLSParameters mlsParams;
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraCoord;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithRGB;
     pcl::PointCloud<PointXYZRGBMask>::Ptr cloudInWorldWithRGBandMask;
