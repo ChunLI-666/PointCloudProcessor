@@ -6,6 +6,9 @@
 #include <vlcal/common/frame.hpp>
 #include <camera/generic_camera_base.hpp>
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 namespace vlcal {
 
 template <typename T>
@@ -20,7 +23,7 @@ double get_real(const double& x) {
 
 class NIDCost {
 public:
-  NIDCost(const camera::GenericCameraBase::ConstPtr& proj, const cv::Mat& normalized_image, const Frame::ConstPtr& points, const int bins = 16)
+  NIDCost(const camera::GenericCameraBaspointse::ConstPtr& proj, const cv::Mat& normalized_image, const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& points, const int bins = 16)
   : proj(proj),
     normalized_image(normalized_image.clone()),
     points(points),
@@ -43,9 +46,12 @@ public:
     Eigen::VectorXd hist_points = Eigen::VectorXd::Zero(bins);
 
     int num_outliers = 0;
-    for (int i = 0; i < points->size(); i++) {
-      const Eigen::Matrix<T, 3, 1> pt_camera = T_camera_lidar * points->points[i].head<3>();
-      const double intensity = points->intensities[i];
+    // for (int i = 0; i < points->size(); i++) {
+    for (const auto& point : points->points) {
+      // const Eigen::Matrix<T, 3, 1> pt_camera = T_camera_lidar * points->points[i].head<3>();
+      const Eigen::Matrix<T, 3, 1> pt_camera = T_camera_lidar * point.getVector3fMap().template cast<T>();
+      // const double intensity = points->intensities[i];
+      const double intensity = point.intensity;
       const int bin_points = std::max<int>(0, std::min<int>(bins - 1, intensity * bins));
 
       const Eigen::Matrix<T, 2, 1> projected = (*proj)(pt_camera);
@@ -109,7 +115,7 @@ public:
 private:
   const camera::GenericCameraBase::ConstPtr proj;
   const cv::Mat normalized_image;
-  const Frame::ConstPtr points;
+  // const Frame::ConstPtr points;
 
   const int bins;
   Eigen::Matrix<double, 4, 4> spline_coeffs;
