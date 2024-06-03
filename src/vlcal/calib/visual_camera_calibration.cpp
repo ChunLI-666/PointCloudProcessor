@@ -112,23 +112,40 @@ Eigen::Isometry3d VisualCameraCalibration::estimate_pose_bfgs(const Eigen::Isome
 
   std::vector<std::shared_ptr<NIDCost>> nid_costs; // create nid costs for each frame
 
-  for (int i = 0; i < dataset.size(); i++) {  // for each frames, first remove hidden points and then create NID cost
-    // Remove hidden points
-    // auto culled_points = view_culling.cull(dataset[i]->points, init_T_camera_lidar); // TODO: replace with pcd points
-    pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud, init_T_camera_lidar);
+  // for (int i = 0; i < dataset.size(); i++) {  // for each frames, first remove hidden points and then create NID cost
+  //   // Remove hidden points
+  //   // auto culled_points = view_culling.cull(dataset[i]->points, init_T_camera_lidar); // TODO: replace with pcd points
+  //   pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud, init_T_camera_lidar);
 
-    // create normalized image in CV_64FC1 format from original image for NID cost
-    cv::Mat normalized_image;
-    // dataset[i]->image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0); // TODO: replace with raw image frame
-    cv::Mat orig_image = cv::imread(frame.imagePath);
+  //   // create normalized image in CV_64FC1 format from original image for NID cost
+  //   cv::Mat normalized_image;
+  //   // dataset[i]->image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0); // TODO: replace with raw image frame
+  //   cv::Mat orig_image = cv::imread(frame.imagePath);
 
-    orig_image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0);
+  //   orig_image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0);
 
-    // create NIDCost object with the normalized image, culled points and projection matrix
-    std::shared_ptr<NIDCost> nid_cost(new NIDCost(proj, normalized_image, culled_points, params.nid_bins));
-    // add the NIDCost object to the vector
-    nid_costs.emplace_back(nid_cost);
-  }
+  //   // create NIDCost object with the normalized image, culled points and projection matrix
+  //   std::shared_ptr<NIDCost> nid_cost(new NIDCost(proj, normalized_image, culled_points, params.nid_bins));
+  //   // add the NIDCost object to the vector
+  //   nid_costs.emplace_back(nid_cost);
+  // }
+
+  // TODO: replace dataset.size with colorized deque size
+  // Remove hidden points
+  // auto culled_points = view_culling.cull(dataset[i]->points, init_T_camera_lidar); // TODO: replace with pcd points
+  pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud, init_T_camera_lidar);
+
+  // create normalized image in CV_64FC1 format from original image for NID cost
+  cv::Mat normalized_image;
+  // dataset[i]->image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0); // TODO: replace with raw image frame
+  cv::Mat orig_image = cv::imread(frame.imagePath);
+
+  orig_image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0);
+
+  // create NIDCost object with the normalized image, culled points and projection matrix
+  std::shared_ptr<NIDCost> nid_cost(new NIDCost(proj, normalized_image, culled_points, params.nid_bins));
+  // add the NIDCost object to the vector
+  nid_costs.emplace_back(nid_cost);
 
   auto sum_nid = new MultiNIDCost(T_camera_lidar);
   for (const auto& nid_cost : nid_costs) {
@@ -151,11 +168,14 @@ Eigen::Isometry3d VisualCameraCalibration::estimate_pose_bfgs(const Eigen::Isome
   ceres::GradientProblemSolver::Summary summary;
   ceres::Solve(options, problem, T_camera_lidar.data(), &summary);
 
-  std::stringstream sst;
-  sst << boost::format("Inner optimization (BFGS) terminated after %d iterations") % summary.iterations.size() << std::endl;
-  sst << boost::format("Final cost: %.3f") % summary.final_cost << std::endl;
-  sst << "--- T_camera_lidar ---" << std::endl << T_camera_lidar.matrix();
-  guik::LightViewer::instance()->append_text(sst.str());
+  // std::stringstream sst;
+  // sst << boost::format("Inner optimization (BFGS) terminated after %d iterations") % summary.iterations.size() << std::endl;
+  // sst << boost::format("Final cost: %.3f") % summary.final_cost << std::endl;
+  // sst << "--- T_camera_lidar ---" << std::endl << T_camera_lidar.matrix();
+  // // guik::LightViewer::instance()->append_text(sst.str());
+  std::cout << boost::format("Inner optimization (BFGS) terminated after %d iterations") % summary.iterations.size() << std::endl;
+  std::cout << boost::format("Final cost: %.3f") % summary.final_cost << std::endl;
+  std::cout << "--- T_camera_lidar ---" << std::endl << T_camera_lidar.matrix();
 
   return Eigen::Isometry3d(T_camera_lidar.matrix());
 
