@@ -11,21 +11,24 @@
 
 #include <sophus/se3.hpp>
 #include <sophus/ceres_manifold.hpp>
-
+#include "FrameData.hpp"
 
 namespace vlcal {
 
 VisualCameraCalibration::VisualCameraCalibration(
   const camera::GenericCameraBase::ConstPtr& proj,
-  const std::vector<VisualLiDARData::ConstPtr>& dataset,
-  const VisualCameraCalibrationParams& params)
+  // const std::vector<VisualLiDARData::ConstPtr>& dataset,
+  const FrameData& frame,
+  const VisualCameraCalibrationParams& params,
+  const pcl::PointCloud<pcl::PointXYZI>::Ptr& point_cloud)
 : params(params),
   proj(proj),
-  dataset(dataset) {}
+  frame(frame),
+  point_cloud(point_cloud) {}
 
 Eigen::Isometry3d VisualCameraCalibration::calibrate(const Eigen::Isometry3d& init_T_camera_lidar) {
     Eigen::Isometry3d T_camera_lidar = init_T_camera_lidar;
-
+VisualCameraCalibration
     // Outer loop
     for (int i = 0; i < params.max_outer_iterations; i++){
         Eigen::Isometry3d new_T_camera_lidar;
@@ -99,10 +102,11 @@ private:
 
 Eigen::Isometry3d VisualCameraCalibration::estimate_pose_bfgs(const Eigen::Isometry3d& init_T_camera_lidar) {
 
-//// Hidden point removal
-//   ViewCullingParams view_culling_params;
-//   view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
-//   ViewCulling view_culling(proj, {dataset.front()->image.cols, dataset.front()->image.rows}, view_culling_params);
+// Hidden point removal
+  ViewCullingParams view_culling_params;
+  view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
+  // ViewCulling view_culling(proj, {dataset.front()->image.cols, dataset.front()->image.rows}, view_culling_params);
+  ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); //TODO: hardcode
 
   Sophus::SE3d T_camera_lidar(init_T_camera_lidar.matrix()); // Init extrinsics
 
@@ -110,11 +114,15 @@ Eigen::Isometry3d VisualCameraCalibration::estimate_pose_bfgs(const Eigen::Isome
 
   for (int i = 0; i < dataset.size(); i++) {  // for each frames, first remove hidden points and then create NID cost
     // Remove hidden points
-    auto culled_points = view_culling.cull(dataset[i]->points, init_T_camera_lidar); // TODO: replace with pcd points
+    // auto culled_points = view_culling.cull(dataset[i]->points, init_T_camera_lidar); // TODO: replace with pcd points
+    pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud, init_T_camera_lidar);
 
     // create normalized image in CV_64FC1 format from original image for NID cost
     cv::Mat normalized_image;
-    dataset[i]->image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0); // TODO: replace with raw image frame
+    // dataset[i]->image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0); // TODO: replace with raw image frame
+    cv::Mat orig_image = cv::imread(frame.imagePath);
+
+    orig_image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0);
 
     // create NIDCost object with the normalized image, culled points and projection matrix
     std::shared_ptr<NIDCost> nid_cost(new NIDCost(proj, normalized_image, culled_points, params.nid_bins));
