@@ -11,6 +11,11 @@
 
 #include <sophus/se3.hpp>
 #include <sophus/ceres_manifold.hpp>
+
+#include <vlcal/costs/nid_cost.hpp>
+#include <vlcal/calib/view_culling.hpp>
+// #include <vlcal/calib/cost_calculator_nid.hpp>
+
 #include "FrameData.hpp"
 
 namespace vlcal
@@ -111,6 +116,16 @@ namespace vlcal
     std::vector<std::shared_ptr<NIDCost>> costs;
   };
 
+  struct IterationCallbackWrapper : public ceres::IterationCallback {
+  public:
+    IterationCallbackWrapper(const std::function<ceres::CallbackReturnType(const ceres::IterationSummary&)>& callback) : callback(callback) {}
+
+    virtual ceres::CallbackReturnType operator()(const ceres::IterationSummary& summary) { return callback(summary); }
+
+  private:
+    std::function<ceres::CallbackReturnType(const ceres::IterationSummary&)> callback;
+  };
+  
   Eigen::Isometry3d VisualCameraCalibration::estimate_pose_bfgs(const Eigen::Isometry3d &init_T_camera_lidar)
   {
 

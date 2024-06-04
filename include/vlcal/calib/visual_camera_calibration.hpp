@@ -4,6 +4,9 @@
 // #include <vlcal/common/visual_lidar_data.hpp>
 #include "FrameData.hpp"
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 namespace vlcal {
 
 enum class RegistrationType { NID_BFGS, NID_NELDER_MEAD };
@@ -59,7 +62,7 @@ private:
   const VisualCameraCalibrationParams params;
 
   const camera::GenericCameraBase::ConstPtr proj;
-  const FrameData frame,
+  const FrameData frame;
   // const std::vector<VisualLiDARData::ConstPtr> dataset;
   const pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud;
 };

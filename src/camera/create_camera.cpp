@@ -2,21 +2,21 @@
 
 #include <ceres/jet.h>
 
-#include <camera/atan.hpp>
+// #include <camera/atan.hpp>
 #include <camera/pinhole.hpp>
 // #include <camera/fisheye.hpp>
 // #include <camera/omnidir.hpp>
 // #include <camera/equirectangular.hpp>
 #include <camera/generic_camera.hpp>
 
-#include <vlcal/common/console_colors.hpp>
+// #include <vlcal/common/console_colors.hpp>
 
 namespace camera {
 
 template <typename Projection>
 camera::GenericCameraBase::ConstPtr create_camera(const std::vector<double>& intrinsics, const std::vector<double>& distortion_coeffs) {
   if (intrinsics.size() != camera::CameraModelTraits<Projection>::num_intrinsic_params) {
-    std::cerr << vlcal::console::bold_red << "error: num of intrinsic parameters mismatch!!" << vlcal::console::reset << std::endl;
+    std::cerr << "error: num of intrinsic parameters mismatch!!" << std::endl;
     return nullptr;
   }
 
@@ -44,7 +44,7 @@ camera::GenericCameraBase::ConstPtr create_camera(const std::string& camera_mode
 //     return create_camera<camera::EquirectangularProjection>(intrinsics, distortion_coeffs);
 //   }
 
-  std::cerr << "error: unknown camera model " << camera_model << std::endl;
+  std::cerr << "error: unknown camera model " << camera_model  << std::endl;
   return nullptr;
 }
 

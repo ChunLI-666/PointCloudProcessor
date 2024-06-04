@@ -5,7 +5,7 @@
 #include <dfo/nelder_mead.hpp>
 #include <dfo/directional_direct_search.hpp> //TODO: add dfo to CMakeLists.txt 
 
-#include <vlcal/common/frame_cpu.hpp>
+// #include <vlcal/common/frame_cpu.hpp>
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -50,44 +50,44 @@ double estimate_camera_fov(const camera::GenericCameraBase::ConstPtr& proj, cons
   return max_fov;
 }
 
-double estimate_lidar_fov(const Frame::ConstPtr& points) {
-  auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  cloud->resize(points->size());
-  std::transform(points->points, points->points + points->size(), cloud->begin(), [](const auto& p) { return pcl::PointXYZ(p.x(), p.y(), p.z()); });
+// double estimate_lidar_fov(const Frame::ConstPtr& points) {
+//   auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+//   cloud->resize(points->size());
+//   std::transform(points->points, points->points + points->size(), cloud->begin(), [](const auto& p) { return pcl::PointXYZ(p.x(), p.y(), p.z()); });
 
-  auto filtered = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  pcl::VoxelGrid<pcl::PointXYZ> voxelgrid;
-  voxelgrid.setLeafSize(0.2f, 0.2f, 0.2f);
-  voxelgrid.setInputCloud(cloud);
-  voxelgrid.filter(*filtered);
+//   auto filtered = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+//   pcl::VoxelGrid<pcl::PointXYZ> voxelgrid;
+//   voxelgrid.setLeafSize(0.2f, 0.2f, 0.2f);
+//   voxelgrid.setInputCloud(cloud);
+//   voxelgrid.filter(*filtered);
 
-  const auto remove_loc = std::remove_if(filtered->begin(), filtered->end(), [](const pcl::PointXYZ& pt) { return pt.getVector3fMap().norm() < 1.0; });
-  filtered->erase(remove_loc, filtered->end());
-  cloud = filtered;
+//   const auto remove_loc = std::remove_if(filtered->begin(), filtered->end(), [](const pcl::PointXYZ& pt) { return pt.getVector3fMap().norm() < 1.0; });
+//   filtered->erase(remove_loc, filtered->end());
+//   cloud = filtered;
 
-  // convexhull
-  pcl::ConvexHull<pcl::PointXYZ> convexhull;
-  convexhull.setInputCloud(cloud);
+//   // convexhull
+//   pcl::ConvexHull<pcl::PointXYZ> convexhull;
+//   convexhull.setInputCloud(cloud);
 
-  auto hull = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  convexhull.reconstruct(*hull);
+//   auto hull = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+//   convexhull.reconstruct(*hull);
 
-  // Precompute bearing vectors
-  std::vector<Eigen::Vector3d> dirs(hull->size());
-  for (int i = 0; i < hull->size(); i++) {
-    dirs[i] = hull->at(i).getVector3fMap().cast<double>().normalized();
-  }
+//   // Precompute bearing vectors
+//   std::vector<Eigen::Vector3d> dirs(hull->size());
+//   for (int i = 0; i < hull->size(); i++) {
+//     dirs[i] = hull->at(i).getVector3fMap().cast<double>().normalized();
+//   }
 
-  // Find the maximum angle in the convexhull
-  double min_cosine = M_PI;
-  for (int i = 0; i < hull->size(); i++) {
-    for (int j = i + 1; j < hull->size(); j++) {
-      const double cosine = dirs[i].dot(dirs[j]);
-      min_cosine = std::min(cosine, min_cosine);
-    }
-  }
+//   // Find the maximum angle in the convexhull
+//   double min_cosine = M_PI;
+//   for (int i = 0; i < hull->size(); i++) {
+//     for (int j = i + 1; j < hull->size(); j++) {
+//       const double cosine = dirs[i].dot(dirs[j]);
+//       min_cosine = std::min(cosine, min_cosine);
+//     }
+//   }
 
-  return std::acos(min_cosine);
-}
+//   return std::acos(min_cosine);
+// }
 
 }  // namespace vlcal

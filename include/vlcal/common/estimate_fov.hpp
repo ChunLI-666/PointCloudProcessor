@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vlcal/common/frame.hpp>
+// #include <vlcal/common/frame.hpp>
 #include <camera/generic_camera_base.hpp>
 
 namespace vlcal {
@@ -21,11 +21,11 @@ Eigen::Vector3d estimate_direction(const camera::GenericCameraBase::ConstPtr& pr
  */
 double estimate_camera_fov(const camera::GenericCameraBase::ConstPtr& proj, const Eigen::Vector2i& image_size);
 
-/**
- * @brief Estimate LiDAR fov
- * @param points  LiDAR points
- * @return        LiDAR FoV [rad]
- */
-double estimate_lidar_fov(const Frame::ConstPtr& points);
+// /**
+//  * @brief Estimate LiDAR fov
+//  * @param points  LiDAR points
+//  * @return        LiDAR FoV [rad]
+//  */
+// double estimate_lidar_fov(const Frame::ConstPtr& points);
 
 }  // namespace vlcal

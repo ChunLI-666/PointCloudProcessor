@@ -2,6 +2,8 @@
 
 #include <camera/generic_camera_base.hpp>
 // #include <vlcal/common/frame_cpu.hpp>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
 namespace vlcal {
 

@@ -29,11 +29,11 @@ namespace vlcal
     {
       point_indices[i] = i;
       Eigen::Vector4d point_homogeneous;
-      point_homogenerous.head<3>() = points->points[i].getVector3fMap().template cast<double>();
-      point_homogenerous[3] = 1.0;
+      point_homogeneous.head<3>() = points->points[i].getVector3fMap().template cast<double>();
+      point_homogeneous[3] = 1.0;
       // points_camera[i] = T_camera_lidar * points->points[i];
       // points_camera[i] = T_camera_lidar * points->points[i].getVector4fMap().template cast<double>();
-      points_camera[i] = T_camera_lidar * point_homogenerous;
+      points_camera[i] = T_camera_lidar * point_homogeneous;
     }
 
     point_indices = view_culling(point_indices, points_camera);

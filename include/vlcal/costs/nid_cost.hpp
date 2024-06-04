@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <sophus/se3.hpp>
 #include <opencv2/core.hpp>
-#include <vlcal/common/frame.hpp>
+// #include <vlcal/common/frame.hpp>
 #include <camera/generic_camera_base.hpp>
 
 #include <pcl/point_cloud.h>
@@ -23,7 +23,7 @@ double get_real(const double& x) {
 
 class NIDCost {
 public:
-  NIDCost(const camera::GenericCameraBaspointse::ConstPtr& proj, 
+  NIDCost(const camera::GenericCameraBase::ConstPtr& proj, 
           const cv::Mat& normalized_image, 
           const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& points, 
           const int bins = 16)
@@ -119,6 +119,7 @@ private:
   const camera::GenericCameraBase::ConstPtr proj;
   const cv::Mat normalized_image;
   // const Frame::ConstPtr points;
+  const pcl::PointCloud<pcl::PointXYZI>::ConstPtr points;
 
   const int bins;
   Eigen::Matrix<double, 4, 4> spline_coeffs;
