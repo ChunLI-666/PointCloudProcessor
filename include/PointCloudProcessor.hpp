@@ -21,7 +21,8 @@ public:
         const std::string &imagesFolder,
         const std::string &maskImageFolder,
         const std::string &outputPath,
-        const bool &enableMLS);
+        const bool &enableMLS,
+        const bool &enableNIDOptimize);
 
     void process();
 
@@ -207,6 +208,7 @@ private:
     std::string outputPath;
     bool enableMLS;
     bool enableNIDOptimize;
+    bool enableMaskSegmentation;
     MLSParameters mlsParams;
 
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
@@ -231,7 +233,7 @@ private:
     // void loadImages();
     void applyFOVDetectionAndHiddenPointRemoval(const FrameData &frame);
     void generateColorMap(const FrameData &frame,
-                          pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc,
+                          pcl::PointCloud<pcl::PointXYZI>::Ptr &pc,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
 
     void generateSegmentMap(const FrameData &frame,

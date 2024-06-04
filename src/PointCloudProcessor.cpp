@@ -18,16 +18,17 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &maskImageFolder,
                                          const std::string &outputPath,
                                          const bool &enableMLS,
-                                         const bool enableNIDOptimize)
+                                         const bool &enableNIDOptimize)
     : pointCloudPath(pointCloudPath),
       odometryPath(odometryPath),
       imagesFolder(imagesFolder),
       maskImageFolder(maskImageFolder),
       outputPath(outputPath),
-      enableMLS(enableMLS)
+      enableMLS(enableMLS),
+      enableNIDOptimize(enableNIDOptimize)
 
 {
-    cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+    cloud.reset(new pcl::PointCloud<pcl::PointXYZI>());
     cloudInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
     cloudInWorldWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
     cloudInWorldWithMaskandMappedColor.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -80,7 +81,7 @@ void PointCloudProcessor::loadPointCloud()
     }
     else
     {
-        if (pcl::io::loadPCDFile<pcl::PointXYZRGB>(pointCloudPath, *cloud) == -1)
+        if (pcl::io::loadPCDFile<pcl::PointXYZI>(pointCloudPath, *cloud) == -1)
         {
             throw std::runtime_error("Couldn't read point cloud file.");
         }
@@ -143,12 +144,13 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     // 3. project 3d points to 2d images
 
     // 3.1(optional): use NID metrics to optimize pose
-    if (enable_NID_optimize)
+    Eigen::Affine3f transformation_c2w_optimized = transformation_c2w;
+    if (enableNIDOptimize)
     {
         const std::string camera_model = "pinhole";
         // vlcal::VisualLiDARCalibration calib(camera_model, K_camera, D_camera, pcl_cloud_filtered, frame);
         vlcal::VisualLiDARCalibration calib(camera_model, K_camera, D_camera, frame);
-        calib.calibrate(*cloudInCameraPose, *pcl_cloud_filtered);
+        calib.calibrate(cloudInCameraPose, pcl_cloud_filtered);
         Eigen::Isometry3d T_camera_lidar_optimized;
         T_camera_lidar_optimized = calib.getOptimizedPose();
 
@@ -175,7 +177,7 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
         std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
         // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-        if (enable_NID_optimized){
+        if (enableNIDOptimize){
             pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w_optimized);
             
         }else{
@@ -199,7 +201,7 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
         std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
         // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-        if (enable_NID_optimized){
+        if (enableNIDOptimize){
             pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w_optimized);
         } else{
             pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w);
@@ -210,7 +212,7 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
 }
 
 void PointCloudProcessor::generateColorMap(const FrameData &frame,
-                                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc,
+                                           pcl::PointCloud<pcl::PointXYZI>::Ptr &pc,
                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color)
 {
     std::cout << "Reading image from: " << frame.imagePath << std::endl;

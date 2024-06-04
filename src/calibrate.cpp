@@ -4,8 +4,16 @@
 #include <iostream>
 #include <boost/program_options.hpp>
 
-#include <vlcal/calib/visual_camera_calibration.hpp>
+// #include <vlcal/calib/visual_camera_calibration.hpp>
 #include "FrameData.hpp"
+
+#include <camera/create_camera.hpp>
+#include <vlcal/costs/nid_cost.hpp>
+// #include <vlcal/common/console_colors.hpp>
+// #include <vlcal/common/visual_lidar_data.hpp>
+// #include <vlcal/common/points_color_updater.hpp>
+// #include <vlcal/common/visual_lidar_visualizer.hpp>
+#include <vlcal/calib/visual_camera_calibration.hpp>
 
 
 namespace vlcal
@@ -89,11 +97,11 @@ namespace vlcal
       // const std::vector<double> T_lidar_camera_values = {trans.x(), trans.y(), trans.z(), quat.x(), quat.y(), quat.z(), quat.w()};
 
       // Clear the output point cloud
-      point_cloud_out.clear();
+      point_cloud_out->clear();
       
       // Iterate through each point in the original point cloud, copy the intensity and transformed point,
       // and push back transformed point into the point_cloud_out  
-      for (const auto& point: point_cloud_origin.points){
+      for (const auto& point: point_cloud_origin->points){
         // Transform the point from lidar frame to camera frame with the optimized T_lidar_camera
         Eigen::Vector3d pt_lidar(point.x, point.y, point.z);
         Eigen::Vector3d pt_transformed = T_camera_lidar * pt_lidar;
@@ -104,7 +112,7 @@ namespace vlcal
         transformed_point.z = pt_transformed.z();
         transformed_point.intensity = point.intensity;
 
-        point_cloud_out.push_back(transformed_point); 
+        point_cloud_out->push_back(transformed_point); 
       }
     }
 

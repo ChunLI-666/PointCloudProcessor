@@ -55,7 +55,7 @@ target_include_directories(direct_visual_lidar_calibration PUBLIC
   ${OpenCV_INCLUDE_DIRS}
 )
 target_link_libraries(direct_visual_lidar_calibration
-  # fmt
+  fmt
   ${Boost_LIBRARIES}
   ${PCL_LIBRARIES}
   ${CERES_LIBRARIES}
@@ -82,6 +82,16 @@ add_executable(${PROJECT_NAME}
   src/RGBFrames.cpp 
   src/cloudSmooth.cpp
 )
-target_link_libraries(${PROJECT_NAME} 
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+  ${catkin_INCLUDE_DIRS}
+)
+
+target_link_libraries(${PROJECT_NAME}
+  ${PCL_LIBRARIES} 
+  ${OpenCV_LIBS} 
+  ${catkin_LIBRARIES} 
+  ${Boost_LIBRARIES} 
+  Open3D::Open3D 
   direct_visual_lidar_calibration
 )

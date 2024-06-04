@@ -109,7 +109,7 @@ namespace vlcal
     return indices;
   }
 
-  pcl::PointCloud<pcl::PointXYZI>::Ptr sample(const pcl::PointCloud<pcl::PointXYZI>::Ptr &frame, const std::vector<int> &indices)
+  pcl::PointCloud<pcl::PointXYZI>::Ptr ViewCulling::sample(const pcl::PointCloud<pcl::PointXYZI>::Ptr &frame, const std::vector<int> &indices) const
   {
     pcl::PointCloud<pcl::PointXYZI>::Ptr sampled_frame(new pcl::PointCloud<pcl::PointXYZI>());
     sampled_frame->reserve(indices.size());
