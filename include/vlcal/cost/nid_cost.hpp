@@ -23,7 +23,10 @@ double get_real(const double& x) {
 
 class NIDCost {
 public:
-  NIDCost(const camera::GenericCameraBaspointse::ConstPtr& proj, const cv::Mat& normalized_image, const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& points, const int bins = 16)
+  NIDCost(const camera::GenericCameraBaspointse::ConstPtr& proj, 
+          const cv::Mat& normalized_image, 
+          const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& points, 
+          const int bins = 16)
   : proj(proj),
     normalized_image(normalized_image.clone()),
     points(points),

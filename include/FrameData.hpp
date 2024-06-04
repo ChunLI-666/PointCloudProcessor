@@ -43,7 +43,6 @@ public:
   cv::Mat segmentImage;
   std::string segmentImagePath;
   
-
   cv::Mat maskImage;
   std::string maskImagePath;
 

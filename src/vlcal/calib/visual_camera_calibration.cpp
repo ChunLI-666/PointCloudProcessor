@@ -32,9 +32,8 @@ namespace vlcal
   Eigen::Isometry3d VisualCameraCalibration::calibrate(const Eigen::Isometry3d &init_T_camera_lidar)
   {
     Eigen::Isometry3d T_camera_lidar = init_T_camera_lidar;
-    VisualCameraCalibration
         // Outer loop
-        for (int i = 0; i < params.max_outer_iterations; i++)
+    for (int i = 0; i < params.max_outer_iterations; i++)
     {
       Eigen::Isometry3d new_T_camera_lidar;
       switch (params.registration_type)
