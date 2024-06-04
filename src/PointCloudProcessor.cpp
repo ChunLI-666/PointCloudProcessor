@@ -145,11 +145,16 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
     // 3.1(optional): use NID metrics to optimize pose
     if (enable_NID_optimize)
     {
-        vlcal::VisualLiDARCalibration calib(K_camera, D_camera, pcl_cloud_filtered, frame);
+        const std::string camera_model = "pinhole";
+        // vlcal::VisualLiDARCalibration calib(camera_model, K_camera, D_camera, pcl_cloud_filtered, frame);
+        vlcal::VisualLiDARCalibration calib(camera_model, K_camera, D_camera, frame);
         calib.calibrate(*cloudInCameraPose, *pcl_cloud_filtered);
+        Eigen::Isometry3d T_camera_lidar_optimized;
+        T_camera_lidar_optimized = calib.getOptimizedPose();
 
-        // calib.implementOptimizedPose(*pcl_cloud_filtered); //TODO: add api into VisualLiDARCalibration
-
+        // Update camera pose with optimized camera-lidar extrinsic        
+        Eigen::Isometry3d t_camere_world_optimized = t_c2w * T_camera_lidar_optimized ;
+        Eigen::Affine3f transformation_c2w_optimized = t_camere_world_optimized.cast<float>();
     }
 
     generateColorMap(frame, pcl_cloud_filtered, scanInBodyWithRGB);
@@ -170,7 +175,12 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
         std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
         // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-        pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w);
+        if (enable_NID_optimized){
+            pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w_optimized);
+            
+        }else{
+            pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w);
+        }
 
         *cloudInWorldWithRGBandMask += *scanInWorldWithRGBandMask;
     }
@@ -189,7 +199,11 @@ void PointCloudProcessor::applyFOVDetectionAndHiddenPointRemoval(const FrameData
         std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << pcl_cloud_filtered->size() << std::endl;
 
         // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-        pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w);
+        if (enable_NID_optimized){
+            pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w_optimized);
+        } else{
+            pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w);
+        }
 
         *cloudInWorldWithRGB += *scanInWorldWithRGB;
     }
