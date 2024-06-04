@@ -27,6 +27,7 @@ namespace vlcal
     {
       // Creare camera projection model
       proj = camera::create_camera(camera_model, K_camera, D_camera);
+      T_camera_lidar = Eigen::Isometry3d::Identity();
     }
 
     void calibrate(const pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud_origin, pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud_out)
@@ -71,7 +72,8 @@ namespace vlcal
       VisualCameraCalibration calib(proj, frame, params, point_cloud_origin);  
 
       std::atomic_bool optimization_terminated = false;
-      Eigen::Isometry3d T_camera_lidar = init_T_camera_lidar;
+      // Eigen::Isometry3d T_camera_lidar = init_T_camera_lidar;
+      T_camera_lidar = init_T_camera_lidar;
       std::thread optimization_thread([&]
                                       {
             T_camera_lidar = calib.calibrate(init_T_camera_lidar);
@@ -118,6 +120,7 @@ namespace vlcal
     camera::GenericCameraBase::ConstPtr proj;
     // std::vector<VisualLiDARData::ConstPtr> dataset;
     const FrameData frame;
+    Eigen::Isometry3d T_camera_lidar;
   };
 
 } // namespace vlcal
