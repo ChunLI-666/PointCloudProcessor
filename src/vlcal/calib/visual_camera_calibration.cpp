@@ -37,7 +37,7 @@ namespace vlcal
   Eigen::Isometry3d VisualCameraCalibration::calibrate(const Eigen::Isometry3d &init_T_camera_lidar)
   {
     Eigen::Isometry3d T_camera_lidar = init_T_camera_lidar;
-        // Outer loop
+    // Outer loop
     for (int i = 0; i < params.max_outer_iterations; i++)
     {
       Eigen::Isometry3d new_T_camera_lidar;
@@ -47,9 +47,9 @@ namespace vlcal
         new_T_camera_lidar = estimate_pose_bfgs(T_camera_lidar);
         break;
 
-      // case RegistrationType::NID_NELDER_MEAD:
-      //   new_T_camera_lidar = estimate_pose_nelder_mead(T_camera_lidar);
-      //   break;
+        // case RegistrationType::NID_NELDER_MEAD:
+        //   new_T_camera_lidar = estimate_pose_nelder_mead(T_camera_lidar);
+        //   break;
       }
 
       const Eigen::Isometry3d delta = new_T_camera_lidar.inverse() * T_camera_lidar;
@@ -116,14 +116,15 @@ namespace vlcal
     std::vector<std::shared_ptr<NIDCost>> costs;
   };
 
-  struct IterationCallbackWrapper : public ceres::IterationCallback {
+  struct IterationCallbackWrapper : public ceres::IterationCallback
+  {
   public:
-    IterationCallbackWrapper(const std::function<ceres::CallbackReturnType(const ceres::IterationSummary&)>& callback) : callback(callback) {}
+    IterationCallbackWrapper(const std::function<ceres::CallbackReturnType(const ceres::IterationSummary &)> &callback) : callback(callback) {}
 
-    virtual ceres::CallbackReturnType operator()(const ceres::IterationSummary& summary) { return callback(summary); }
+    virtual ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) { return callback(summary); }
 
   private:
-    std::function<ceres::CallbackReturnType(const ceres::IterationSummary&)> callback;
+    std::function<ceres::CallbackReturnType(const ceres::IterationSummary &)> callback;
   };
 
   Eigen::Isometry3d VisualCameraCalibration::estimate_pose_bfgs(const Eigen::Isometry3d &init_T_camera_lidar)
@@ -133,6 +134,7 @@ namespace vlcal
     ViewCullingParams view_culling_params;
     view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
     // ViewCulling view_culling(proj, {dataset.front()->image.cols, dataset.front()->image.rows}, view_culling_params);
+    std::cout << "before view_culling!" << std::endl;
     ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
 
     Sophus::SE3d T_camera_lidar(init_T_camera_lidar.matrix()); // Init extrinsics
@@ -161,6 +163,7 @@ namespace vlcal
     // Remove hidden points
     // auto culled_points = view_culling.cull(dataset[i]->points, init_T_camera_lidar); // TODO: replace with pcd points
     pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud, init_T_camera_lidar);
+    std::cout << "after view_culling!" << std::endl;
 
     // create normalized image in CV_64FC1 format from original image for NID cost
     cv::Mat normalized_image;
@@ -170,6 +173,7 @@ namespace vlcal
     orig_image.convertTo(normalized_image, CV_64FC1, 1.0 / 255.0);
 
     // create NIDCost object with the normalized image, culled points and projection matrix
+    std::cout << "Init nid_cost" << std::endl;
     std::shared_ptr<NIDCost> nid_cost(new NIDCost(proj, normalized_image, culled_points, params.nid_bins));
     // add the NIDCost object to the vector
     nid_costs.emplace_back(nid_cost);
@@ -181,23 +185,35 @@ namespace vlcal
     }
 
     auto cost = new ceres::AutoDiffFirstOrderFunction<MultiNIDCost, Sophus::SE3d::num_parameters>(sum_nid);
-    // ceres::GradientProblem problem(cost, new Sophus::Manifold<Sophus::SE3>());
-    ceres::GradientProblem problem(cost);
-
+    ceres::GradientProblem problem(cost, new Sophus::Manifold<Sophus::SE3>());
+    // ceres::GradientProblem problem(cost);
 
     ceres::GradientProblemSolver::Options options;
     options.minimizer_progress_to_stdout = true;
     options.update_state_every_iteration = true;
     options.line_search_direction_type = ceres::BFGS;
 
+    std::cout << "options.callback!" << std::endl;
+    // options.callbacks.emplace_back(new IterationCallbackWrapper([&](const ceres::IterationSummary &summary)
+    //                                                             {
+    // params.callback(Eigen::Isometry3d(T_camera_lidar.matrix()));
+    // return ceres::CallbackReturnType::SOLVER_CONTINUE; }));
+
+    // ceres::GradientProblemSolver::Summary summary;
+    // ceres::Solve(options, problem, T_camera_lidar.data(), &summary);
+
     options.callbacks.emplace_back(new IterationCallbackWrapper([&](const ceres::IterationSummary &summary)
                                                                 {
-    params.callback(Eigen::Isometry3d(T_camera_lidar.matrix()));
-    return ceres::CallbackReturnType::SOLVER_CONTINUE; }));
+        if (params.callback) {
+            params.callback(Eigen::Isometry3d(T_camera_lidar.matrix()));
+        }    
+        return ceres::CallbackReturnType::SOLVER_CONTINUE; }));
 
     ceres::GradientProblemSolver::Summary summary;
     ceres::Solve(options, problem, T_camera_lidar.data(), &summary);
 
+
+    std::cout << "ceres solve done!" << std::endl;
     // std::stringstream sst;
     // sst << boost::format("Inner optimization (BFGS) terminated after %d iterations") % summary.iterations.size() << std::endl;
     // sst << boost::format("Final cost: %.3f") % summary.final_cost << std::endl;

@@ -36,7 +36,9 @@ namespace vlcal
       points_camera[i] = T_camera_lidar * point_homogeneous;
     }
 
+    std::cout << "Before view_culling: point_indices is " << point_indices.size() << std::endl;
     point_indices = view_culling(point_indices, points_camera);
+    std::cout << "After view_culling: point_indices is " << point_indices.size() << std::endl;
     return sample(points, point_indices);
   }
 
@@ -47,19 +49,32 @@ namespace vlcal
     indices.reserve(points_camera.size());
     projected_points.reserve(points_camera.size());
 
-    cv::Mat dist_map(image_size.y(), image_size.x(), CV_32FC1, cv::Scalar::all(std::numeric_limits<double>::max()));
-    cv::Mat index_map(image_size.y(), image_size.x(), CV_32SC1, cv::Scalar::all(-1));
+    // cv::Mat dist_map(image_size.y(), image_size.x(), CV_32FC1, cv::Scalar::all(std::numeric_limits<double>::max()));
+    // cv::Mat index_map(image_size.y(), image_size.x(), CV_32SC1, cv::Scalar::all(-1));
+  
+    // 将图像分辨率下采样
+    const int downsample_factor = 4; // 下采样因子，可以根据需要调整
+    cv::Mat dist_map(image_size.y() / downsample_factor, image_size.x() / downsample_factor, CV_32FC1, cv::Scalar::all(std::numeric_limits<float>::max()));
+    cv::Mat index_map(image_size.y() / downsample_factor, image_size.x() / downsample_factor, CV_32SC1, cv::Scalar::all(-1));
+
 
     for (int i = 0; i < points_camera.size(); i++)
     {
       const auto &pt_camera = points_camera[i];
-      if (pt_camera.normalized().head<3>().z() < min_z)
-      {
-        // Out of FoV
-        continue;
-      }
+      // if (pt_camera.normalized().head<3>().z() < min_z)
+      // {
+      //   // Out of FoV
+      //   continue;
+      // }
 
-      const Eigen::Vector2i pt_2d = proj->project(pt_camera.head<3>()).cast<int>();
+      // const Eigen::Vector2i pt_2d = proj->project(pt_camera.head<3>()).cast<int>();
+      // 将投影点下采样
+      // Eigen::Vector2f pt_2d_f = proj->project(pt_camera.head<3>()).head<2>();
+      
+      Eigen::Vector2f pt_2d_f = proj->project(pt_camera.head<3>()).head<2>().cast<float>();
+
+      Eigen::Vector2i pt_2d = (pt_2d_f / downsample_factor).cast<int>();
+
       if ((pt_2d.array() < Eigen::Array2i::Zero()).any() || (pt_2d.array() >= image_size.array()).any())
       {
         // Out of image
@@ -72,13 +87,35 @@ namespace vlcal
       if (params.enable_depth_buffer_culling)
       {
         const double dist = pt_camera.head<3>().norm();
-        if (dist > dist_map.at<float>(pt_2d.y(), pt_2d.x()))
-        {
-          continue;
-        }
 
-        dist_map.at<float>(pt_2d.y(), pt_2d.x()) = dist;
-        index_map.at<int>(pt_2d.y(), pt_2d.x()) = point_indices[i];
+      //   if (dist > dist_map.at<float>(pt_2d.y(), pt_2d.x()))  //TODO: fix issue
+      //   {
+      //     continue;
+      //   }
+
+      //   dist_map.at<float>(pt_2d.y(), pt_2d.x()) = dist;
+      //   index_map.at<int>(pt_2d.y(), pt_2d.x()) = point_indices[i];
+      // }
+
+        int x = pt_2d.x();
+        int y = pt_2d.y();
+
+        if (x >= 0 && x < dist_map.cols && y >= 0 && y < dist_map.rows)
+        {
+            if (dist > dist_map.at<float>(y, x))  // Use 'at' with correct indices
+            {
+                continue;
+            }
+
+            dist_map.at<float>(y, x) = dist;
+            index_map.at<int>(y, x) = point_indices[i];
+        }
+        else
+        {
+            // Handle out of bounds case if needed
+            // For example, log a warning or ignore the point
+            continue;
+        }
       }
     }
 
@@ -95,9 +132,23 @@ namespace vlcal
         const auto &pt_camera = points_camera[index];
         const double dist = pt_camera.head<3>().norm();
 
-        if (dist > dist_map.at<float>(pt_2d.y(), pt_2d.x()) + 0.1)
+        // if (dist > dist_map.at<float>(pt_2d.y(), pt_2d.x()) + 0.05)
+        // {
+        //   continue;
+        // }
+        int x = pt_2d.x();
+        int y = pt_2d.y();
+
+        if (x >= 0 && x < dist_map.cols && y >= 0 && y < dist_map.rows)
         {
-          continue;
+            if (dist > dist_map.at<float>(pt_2d.y(), pt_2d.x()) + 0.05)  // Use 'at' with correct indices
+            {
+                continue;
+            }
+        }
+        else
+        {
+            continue;
         }
 
         new_indices.emplace_back(index);
