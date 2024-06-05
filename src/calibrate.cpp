@@ -14,7 +14,7 @@
 // #include <vlcal/common/points_color_updater.hpp>
 // #include <vlcal/common/visual_lidar_visualizer.hpp>
 #include <vlcal/calib/visual_camera_calibration.hpp>
-
+#include <vlcal/calib/view_culling.hpp>
 
 namespace vlcal
 {
@@ -62,6 +62,7 @@ namespace vlcal
       params.nid_bins = 16;
       params.nelder_mead_init_step = 0.001;
       params.nelder_mead_convergence_criteria = 1e-8;
+      params.disable_z_buffer_culling = false;
 
       const std::string registration_type = "nid_bfgs";
       if (registration_type == "nid_bfgs")
@@ -89,27 +90,46 @@ namespace vlcal
 
       optimization_thread.join();
 
-      // Save the optimized results
-      const Eigen::Isometry3d T_lidar_camera = T_camera_lidar.inverse(); //TODO： check if this is correct
-      // const Eigen::Vector3d trans(T_lidar_camera.translation());
-      // const Eigen::Quaterniond quat(T_lidar_camera.linear());
+      // // Save the optimized results
+      // const Eigen::Isometry3d T_lidar_camera = T_camera_lidar.inverse(); //TODO： check if this is correct
+      // // const Eigen::Vector3d trans(T_lidar_camera.translation());
+      // // const Eigen::Quaterniond quat(T_lidar_camera.linear());
 
-      // const std::vector<double> T_lidar_camera_values = {trans.x(), trans.y(), trans.z(), quat.x(), quat.y(), quat.z(), quat.w()};
+      // // const std::vector<double> T_lidar_camera_values = {trans.x(), trans.y(), trans.z(), quat.x(), quat.y(), quat.z(), quat.w()};
 
-      // Clear the output point cloud
-      point_cloud_out->clear();
+      // // Clear the output point cloud
+      // point_cloud_out->clear();
       
-      // Iterate through each point in the original point cloud, copy the intensity and transformed point,
-      // and push back transformed point into the point_cloud_out  
-      for (const auto& point: point_cloud_origin->points){
-        // Transform the point from lidar frame to camera frame with the optimized T_lidar_camera
-        Eigen::Vector3d pt_lidar(point.x, point.y, point.z);
-        Eigen::Vector3d pt_transformed = T_camera_lidar * pt_lidar;
+      // // Iterate through each point in the original point cloud, copy the intensity and transformed point,
+      // // and push back transformed point into the point_cloud_out  
+      // for (const auto& point: point_cloud_origin->points){
+      //   // Transform the point from lidar frame to camera frame with the optimized T_lidar_camera
+      //   Eigen::Vector3d pt_lidar(point.x, point.y, point.z);
+      //   Eigen::Vector3d pt_transformed = T_camera_lidar * pt_lidar;
 
+      //   pcl::PointXYZI transformed_point;
+      //   transformed_point.x = pt_transformed.x();
+      //   transformed_point.y = pt_transformed.y();
+      //   transformed_point.z = pt_transformed.z();
+      //   transformed_point.intensity = point.intensity;
+
+      //   point_cloud_out->push_back(transformed_point); 
+      // }
+
+
+      // Generate new point cloud with the optimized T_lidar_camera and view_culling function
+      ViewCullingParams view_culling_params;
+      view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
+      std::cout << "before view_culling!" << std::endl;
+      ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
+      pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud_origin, T_camera_lidar);
+
+      point_cloud_out->clear();
+      for (const auto& point: culled_points->points){
         pcl::PointXYZI transformed_point;
-        transformed_point.x = pt_transformed.x();
-        transformed_point.y = pt_transformed.y();
-        transformed_point.z = pt_transformed.z();
+        transformed_point.x = point.x;
+        transformed_point.y = point.y;
+        transformed_point.z = point.z;
         transformed_point.intensity = point.intensity;
 
         point_cloud_out->push_back(transformed_point); 
