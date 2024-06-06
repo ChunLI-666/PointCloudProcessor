@@ -146,7 +146,7 @@ namespace vlcal
     ViewCullingParams view_culling_params;
     view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
     // ViewCulling view_culling(proj, {dataset.front()->image.cols, dataset.front()->image.rows}, view_culling_params);
-    std::cout << "before view_culling!" << std::endl;
+    // std::cout << "before view_culling!" << std::endl;
     ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
 
     Sophus::SE3d T_camera_lidar(init_T_camera_lidar.matrix()); // Init extrinsics
@@ -212,7 +212,7 @@ namespace vlcal
     options.update_state_every_iteration = true;
     options.line_search_direction_type = ceres::BFGS;
 
-    std::cout << "options.callback!" << std::endl;
+    // std::cout << "options.callback!" << std::endl;
     // options.callbacks.emplace_back(new IterationCallbackWrapper([&](const ceres::IterationSummary &summary)
     //                                                             {
     // params.callback(Eigen::Isometry3d(T_camera_lidar.matrix()));

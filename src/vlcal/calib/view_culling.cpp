@@ -36,9 +36,9 @@ namespace vlcal
       points_camera[i] = T_camera_lidar * point_homogeneous;
     }
 
-    std::cout << "Before view_culling: point_indices is " << point_indices.size() << std::endl;
+    // std::cout << "Before view_culling: point_indices is " << point_indices.size() << std::endl;
     point_indices = view_culling(point_indices, points_camera);
-    std::cout << "After view_culling: point_indices is " << point_indices.size() << std::endl;
+    // std::cout << "After view_culling: point_indices is " << point_indices.size() << std::endl;
     return sample(points, point_indices);
   }
 

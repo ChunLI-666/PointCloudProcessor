@@ -353,7 +353,9 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
         // view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
         std::cout << "before view_culling!" << std::endl;
         vlcal::ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPoseCulled = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());
+
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPoseCulled = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());        
+        std::cout <<" the point size of cloudInCameraPoseCulled is " << cloudInCameraPoseCulled->size() << std::endl;
 
         generateColorMap(*keyframe, cloudInCameraPoseCulled, scanInBodyWithRGB);
 
@@ -473,7 +475,7 @@ void PointCloudProcessor::generateSegmentMap(const FrameData &frame,
     for (int i = 0; i < pc_color->points.size(); i++)
     {
         // Eigen::Vector3d point_pc = {pc->points[i].x, pc->points[i].y, pc->points[i].z};
-        Eigen::Vector3d point_camera = {pc_color->points[i].x, pc_color->points[i].y, pc_color->points[i].z};
+    Eigen::Vector3d point_camera = {pc_color->points[i].x, pc_color->points[i].y, pc_color->points[i].z};
         // Eigen::Vector3d point_camera = Rcl * point_pc + tcl;
         if (point_camera.z() > 0)
         {
