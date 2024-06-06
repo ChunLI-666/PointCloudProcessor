@@ -35,10 +35,18 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZRGBMask,
 class FrameData
 {
 public:
+  using Ptr = std::shared_ptr<FrameData>;
+  using ConstPtr = std::shared_ptr<const FrameData>;
+
+  FrameData() {};
+  FrameData(const std::string &imagePath, double image_timestamp, const Pose &pose);
+  ~FrameData();
+
+public:
   Pose pose;
   cv::Mat image; //raw image
   std::string imagePath;
-  double imageTimestamp; 
+  double imageTimestamp;
 
   cv::Mat segmentImage;
   std::string segmentImagePath;
@@ -46,10 +54,12 @@ public:
   cv::Mat maskImage;
   std::string maskImagePath;
 
-  FrameData(const std::string &imagePath, double image_timestamp, const Pose &pose);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr ptsInCamFrame;
+  std::string culledPCDPath; // path to the culled pcd data, with no color, in camera coords
 
   void addSegmentImage(const std::string &maskImagePath);
   // addImage(cv::Mat image, double timestamp);
+  void addPts(const pcl::PointCloud<pcl::PointXYZI>::Ptr &points);
 };
 
 #endif // FRAMEDATA_HPP

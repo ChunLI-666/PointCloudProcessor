@@ -22,3 +22,11 @@ void FrameData::addSegmentImage(const std::string &maskImagePath)
     this->maskImagePath = maskImagePath;
     // this->maskImage = maskImage;
 }
+
+void FrameData::addPts(const pcl::PointCloud<pcl::PointXYZI>::Ptr &points){
+    this->ptsInCamFrame = points;
+}
+
+FrameData::~FrameData(){
+
+}
