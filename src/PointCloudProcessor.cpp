@@ -137,7 +137,7 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
         camera::GenericCameraBase::ConstPtr proj = camera::create_camera(camera_model, K_camera_coefficients, D_camera);
         vlcal::ViewCullingParams view_culling_params;
         // view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
-        std::cout << "before view_culling!" << std::endl;
+        // std::cout << "before view_culling!" << std::endl;
         vlcal::ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
         pcl::PointCloud<pcl::PointXYZI>::Ptr culledPCD = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());
 
@@ -318,11 +318,11 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
 
     // 1. Transform point cloud from world coordinates to camera pose coordinates
     for(auto keyframe: keyframes){
-        // Reset cloud at the beginning
-        scanInBodyWithRGB.reset();
-        scanInBodyWithRGBandMask.reset();
-        scanInWorldWithRGB.reset();
-        scanInWorldWithRGBandMask.reset();
+        // Reset cloud and assign at the beginning
+        scanInBodyWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+        scanInBodyWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
+        scanInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+        scanInWorldWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
 
         Pose voPose = getPoseFromOdom(keyframe->pose);
 
@@ -404,6 +404,12 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
                                            pcl::PointCloud<pcl::PointXYZI>::Ptr &pc,
                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color)
 {
+    if (!pc || !pc_color)
+    {
+        throw std::runtime_error("PointCloud pointers are not initialized.");
+        return;
+    }
+
     std::cout << "Reading image from: " << frame.imagePath << std::endl;
     cv::Mat rgb = cv::imread(frame.imagePath);
     if (rgb.empty())
@@ -683,7 +689,7 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 0.8; // meter, 1
+    const double distThreshold = 3; // meter, 1
     const double angThreshold = 30.0; // degree. 25
 
     for (auto &frame : frames)
