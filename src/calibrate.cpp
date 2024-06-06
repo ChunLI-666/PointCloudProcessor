@@ -26,36 +26,24 @@ namespace vlcal
                            const std::vector<double> &K_camera,
                            const std::vector<double> &D_camera,
                           //  const pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud,
-                           const FrameData &frame)
+                           const std::vector<FrameData::Ptr> &keyframes)
         : camera_model(camera_model),
           K_camera(K_camera),
           D_camera(D_camera),
           // pcl_cloud_filtered(point_cloud),
-          frame(frame)
+          keyframes(keyframes)
     {
       // Creare camera projection model
       proj = camera::create_camera(camera_model, K_camera, D_camera);
       T_camera_lidar = Eigen::Isometry3d::Identity();
     }
 
-    void calibrate(const pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud_origin, pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud_out)
+    // void calibrate(const pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud_origin, pcl::PointCloud<pcl::PointXYZI>::Ptr &point_cloud_out)
+    void calibrate()
     {
-      // std::vector<double> init_values{7, 0.0}; // vector of init T_lidar_camera
-      // Init initial values with identity matrix. In our case, the point cloud is already in camera frame
-      // init_values = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0}; // 7 elements (x, y, z, qx, qy, qz, qw)
-
-      // if (init_values.empty())
-      // {
-      //   std::cerr << "error: initial guess of T_lidar_camera must be computed before calibration!!" << std::endl;
-      //   abort();
-      // }
-
       // assign the initial guess of T_lidar_camera
-      Eigen::Isometry3d init_T_lidar_camera = Eigen::Isometry3d::Identity();
-      // init_T_lidar_camera.translation() << init_values[0], init_values[1], init_values[2];
-      // init_T_lidar_camera.linear() == Eigen::Quaterniond(init_values[6], init_values[3], init_values[4], init_values[5]).normalized().toRotationMatrix();
-
-      const Eigen::Isometry3d init_T_camera_lidar = init_T_lidar_camera.inverse();
+      // const Eigen::Isometry3d init_T_lidar_camera = Eigen::Isometry3d::Identity();
+      const Eigen::Isometry3d init_T_camera_lidar = Eigen::Isometry3d::Identity();
 
       VisualCameraCalibrationParams params;
       // params.disable_z_buffer_culling = vm.count("disable_culling");
@@ -69,19 +57,18 @@ namespace vlcal
       {
         params.registration_type = RegistrationType::NID_BFGS;
       }
-      else if (registration_type == "nid_nelder_mead")
-      {
-        params.registration_type = RegistrationType::NID_NELDER_MEAD;
-      }
+      // else if (registration_type == "nid_nelder_mead")
+      // {
+      //   params.registration_type = RegistrationType::NID_NELDER_MEAD;
+      // }
       else
       {
         std::cerr << "warning: unknown registration type " << registration_type << std::endl;
       }
 
-      VisualCameraCalibration calib(proj, frame, params, point_cloud_origin);  
+      VisualCameraCalibration calib(proj, keyframes, params);  
 
       std::atomic_bool optimization_terminated = false;
-      // Eigen::Isometry3d T_camera_lidar = init_T_camera_lidar;
       T_camera_lidar = init_T_camera_lidar;
       std::thread optimization_thread([&]
                                       {
@@ -117,23 +104,23 @@ namespace vlcal
       // }
 
 
-      // Generate new point cloud with the optimized T_lidar_camera and view_culling function
-      ViewCullingParams view_culling_params;
-      view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
-      std::cout << "before view_culling!" << std::endl;
-      ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
-      pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud_origin, T_camera_lidar);
+      // // Generate new point cloud with the optimized T_lidar_camera and view_culling function
+      // ViewCullingParams view_culling_params;
+      // view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
+      // std::cout << "before view_culling!" << std::endl;
+      // ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
+      // pcl::PointCloud<pcl::PointXYZI>::Ptr culled_points = view_culling.cull(point_cloud_origin, T_camera_lidar);
 
-      point_cloud_out->clear();
-      for (const auto& point: culled_points->points){
-        pcl::PointXYZI transformed_point;
-        transformed_point.x = point.x;
-        transformed_point.y = point.y;
-        transformed_point.z = point.z;
-        transformed_point.intensity = point.intensity;
+      // point_cloud_out->clear();
+      // for (const auto& point: culled_points->points){
+      //   pcl::PointXYZI transformed_point;
+      //   transformed_point.x = point.x;
+      //   transformed_point.y = point.y;
+      //   transformed_point.z = point.z;
+      //   transformed_point.intensity = point.intensity;
 
-        point_cloud_out->push_back(transformed_point); 
-      }
+      //   point_cloud_out->push_back(transformed_point); 
+      // }
     }
 
     Eigen::Isometry3d getOptimizedPose(){
@@ -148,6 +135,7 @@ namespace vlcal
     camera::GenericCameraBase::ConstPtr proj;
     // std::vector<VisualLiDARData::ConstPtr> dataset;
     const FrameData frame;
+    const std::vector<FrameData::Ptr> keyframes;
     Eigen::Isometry3d T_camera_lidar;
   };
 
