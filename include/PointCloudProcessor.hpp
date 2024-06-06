@@ -26,6 +26,10 @@ public:
 
     void process();
 
+    void generateResultStorageFolder();
+
+    void selectKeyframes();
+
     // Function to convert a PCL Point Cloud to an Open3D Point Cloud
     std::shared_ptr<open3d::geometry::PointCloud> ConvertPCLToOpen3D(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pcl_cloud)
         {
@@ -158,7 +162,7 @@ public:
         return Pose{tx, ty, tz, pose.qw, pose.qx, pose.qy, pose.qz};
     } // getOdom
 
-    bool markKeyframe(const FrameData &newFrame, const FrameData *lastFrame, const double distThreshold, const double angThreshold)
+    bool markKeyframe(FrameData::Ptr &newFrame, FrameData::Ptr &lastFrame, const double distThreshold, const double angThreshold)
     {
         double deltaDistance;
         double deltaAngle;
@@ -170,7 +174,7 @@ public:
         }
 
         const Pose &lastFramePose = lastFrame->pose;
-        const Pose &newFramePose = newFrame.pose;
+        const Pose &newFramePose = newFrame->pose;
 
         double dx = newFramePose.x - lastFramePose.x;
         double dy = newFramePose.y - lastFramePose.y;
@@ -216,22 +220,34 @@ private:
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInCameraCoord;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithRGB;
     pcl::PointCloud<PointXYZRGBMask>::Ptr cloudInWorldWithRGBandMask;
-
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInWorldWithMaskandMappedColor;
 
-    std::vector<FrameData> frames;
+    std::vector<FrameData::Ptr> frames;
+    std::vector<FrameData::Ptr> selectedKeyframes;
 
     Eigen::Matrix3d R_lidar2cam;   // Rotation matrix from lidar to camera
     Eigen::Vector3d t_lidar2cam;   // Translation vector from lidar to camera
     Eigen::Isometry3d T_lidar2cam; // Transformation matrix from lidar to camera
+    Eigen::Isometry3d T_camera_lidar_optimized; // Optimized camera_lidar extrinsics 
+                                                // , plz noted that this is not the true extrinsics
+                                                // , it just the compensated value generated from NID-optiminizatiom
 
     std::vector<double> K_camera{9, 0.0};
     std::vector<double> D_camera{5, 0.0};
 
+    const std::string camera_model = "pinhole";
+    std::vector<double> K_camera_coefficients{4, 0.0};
+
+
     void loadPointCloud();
+    void loadImagesAndOdometry();
+
     // void loadVisualOdometry();
     // void loadImages();
-    void applyFOVDetectionAndHiddenPointRemoval(const FrameData &frame);
+    void pcdColorization(std::vector<FrameData::Ptr> &keyframes);
+    // void applyNIDBasedPoseOptimization(FrameData::ConstPtr &keyframes);
+    void applyNIDBasedPoseOptimization(std::vector<FrameData::Ptr> &keyframes);
+    void viewCullingAndSaveFilteredPcds(std::vector<FrameData::Ptr> &keyframes);
     void generateColorMap(const FrameData &frame,
                           pcl::PointCloud<pcl::PointXYZI>::Ptr &pc,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
@@ -246,7 +262,6 @@ private:
     void visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud);
     // Pose6D getPose6DFromOdom(const Pose &pose);
     // Pose getPoseFromOdom(const Pose &pose);
-    void loadImagesAndOdometry();
     // void colorizePoints();
     // void smoothColors();
     void saveColorizedPointCloud();
