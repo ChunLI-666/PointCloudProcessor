@@ -46,11 +46,15 @@ public:
 
 class VisualCameraCalibration {
 public:
-  // VisualCameraCalibration(const camera::GenericCameraBase::ConstPtr& proj, const std::vector<VisualLiDARData::ConstPtr>& dataset, const VisualCameraCalibrationParams& params = VisualCameraCalibrationParams());
+  // VisualCameraCalibration(const camera::GenericCameraBase::ConstPtr& proj, 
+  //                         const FrameData& frame, 
+  //                         const VisualCameraCalibrationParams& params = VisualCameraCalibrationParams(),
+  //                         const pcl::PointCloud<pcl::PointXYZI>::Ptr& point_cloud = nullptr);
+
   VisualCameraCalibration(const camera::GenericCameraBase::ConstPtr& proj, 
-                          const FrameData& frame, 
-                          const VisualCameraCalibrationParams& params = VisualCameraCalibrationParams(),
-                          const pcl::PointCloud<pcl::PointXYZI>::Ptr& point_cloud = nullptr);
+                          const std::vector<FrameData::Ptr>& keyframes, 
+                          const VisualCameraCalibrationParams& params = VisualCameraCalibrationParams()
+                          );
 
   Eigen::Isometry3d calibrate(const Eigen::Isometry3d& init_T_camera_lidar);
 
@@ -63,6 +67,7 @@ private:
 
   const camera::GenericCameraBase::ConstPtr proj;
   const FrameData frame;
+  const std::vector<FrameData::Ptr> keyframes;
   // const std::vector<VisualLiDARData::ConstPtr> dataset;
   const pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud;
 };
