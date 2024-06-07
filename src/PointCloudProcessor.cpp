@@ -318,7 +318,7 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
 
     // 1. Transform point cloud from world coordinates to camera pose coordinates
     for(auto keyframe: keyframes){
-        // Reset cloud and assign at the beginning
+        // Reset cloud and assign new objects at the beginning
         scanInBodyWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
         scanInBodyWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
         scanInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -689,8 +689,8 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 3; // meter, 1
-    const double angThreshold = 30.0; // degree. 25
+    const double distThreshold = 1.0; // meter, 1
+    const double angThreshold = 25.0; // degree. 25
 
     for (auto &frame : frames)
     {
