@@ -14,11 +14,14 @@ enum class RegistrationType { NID_BFGS, NID_NELDER_MEAD };
 struct VisualCameraCalibrationParams {
 public:
   VisualCameraCalibrationParams() {
-    max_outer_iterations = 10;
+    max_outer_iterations = 10; //TODO: hardcode
     max_inner_iterations = 256;
 
-    delta_trans_thresh = 0.1;
-    delta_rot_thresh = 0.5 * M_PI / 180.0;
+    // delta_trans_thresh = 0.1; 
+    // delta_rot_thresh = 0.5 * M_PI / 180.0;
+
+    delta_trans_thresh = 0.01; // 1cm 
+    delta_rot_thresh = 1 * M_PI / 180.0; // 0.1 degree
 
     disable_z_buffer_culling = false;
 

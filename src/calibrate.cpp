@@ -47,6 +47,8 @@ namespace vlcal
 
       VisualCameraCalibrationParams params;
       // params.disable_z_buffer_culling = vm.count("disable_culling");
+      // TODO: hardcode
+      // params.nid_bins = 16;
       params.nid_bins = 16;
       params.nelder_mead_init_step = 0.001;
       params.nelder_mead_convergence_criteria = 1e-8;

@@ -6,13 +6,21 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/build/PointCloudProcessor",  // Adjust this path if needed
+        // "args": [
+        //   "--point_cloud_path", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/scans-mls-clean.pcd",
+        //   "--odometry_path", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/vo_interpolated_odom.txt",
+        //   "--images_folder", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/raw_images/",
+        //   "--output_path", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/",
+        //   "--enableMLS", "0",
+        //   "--enableNIDOptimize", "1"
+        // ],
         "args": [
-          "--point_cloud_path", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/scans-mls-clean.pcd",
-          "--odometry_path", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/vo_interpolated_odom.txt",
-          "--images_folder", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/raw_images/",
-          "--output_path", "/mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/",
+          "--point_cloud_path", "/mnt/disk01/data/zhongnna/test03/scans-clean-mls.pcd",
+          "--odometry_path", "/mnt/disk01/data/zhongnna/test03/vo_interpolated_odom.txt",
+          "--images_folder", "/mnt/disk01/data/zhongnna/test03/raw_images/",
+          "--output_path", "/mnt/disk01/data/zhongnna/test03/",
           "--enableMLS", "0",
-          "--enableNIDOptimize", "1"
+          "--enableNIDOptimize", "0"
         ],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}",
@@ -28,13 +36,6 @@
         ],
         "preLaunchTask": "CMake: build",
         "miDebuggerPath": "/usr/bin/gdb",
-        "setupCommands": [
-          {
-            "description": "Enable pretty-printing for gdb",
-            "text": "-enable-pretty-printing",
-            "ignoreFailures": true
-          }
-        ],
         "logging": {
           "moduleLoad": true,
           "programOutput": true,
