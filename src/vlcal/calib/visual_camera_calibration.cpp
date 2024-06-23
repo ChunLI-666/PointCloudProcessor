@@ -71,7 +71,7 @@ namespace vlcal
       const double delta_r = Eigen::AngleAxisd(delta.linear()).angle();
       const bool converged = delta_t < params.delta_trans_thresh && delta_r < params.delta_rot_thresh;
 
-      std::cout << boost::format("delta_t: %.3f [m] delta_r: %.3f [rad]") % delta_t % delta_r << std::endl;
+      std::cout << boost::format("\n delta_t: %.4f [m] delta_r: %.6f [rad]") % delta_t % delta_r << std::endl;
       std::cout << (converged ? "Outer loop converged" : "Outer loop not converged, Re-run inner optimization with the new viewpoint") << std::endl;
 
       if (converged)

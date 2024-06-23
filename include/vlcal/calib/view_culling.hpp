@@ -11,9 +11,11 @@ struct ViewCullingParams {
 public:
   ViewCullingParams() {
     enable_depth_buffer_culling = true;
+    hidden_points_removal_max_z = 1000.0;
   }
 
   bool enable_depth_buffer_culling;       ///< If ture, perform depth-buffer-based hidden points removal
+  double hidden_points_removal_max_z;
 };
 
 class ViewCulling {
@@ -34,7 +36,7 @@ public:
 
 private:
   std::vector<int> view_culling(const std::vector<int>& point_indices, const std::vector<Eigen::Vector4d>& points_camera) const;
-  // std::vector<int> hidden_points_removal(const std::vector<int>& point_indices, const std::vector<Eigen::Vector4d>& points_camera) const;
+  std::vector<int> hidden_points_removal(const std::vector<int>& point_indices, const std::vector<Eigen::Vector4d>& points_camera) const;
   pcl::PointCloud<pcl::PointXYZI>::Ptr sample(const pcl::PointCloud<pcl::PointXYZI>::Ptr& frame, const std::vector<int>& indices) const;
 
 private:

@@ -1,5 +1,4 @@
-#ifndef POINTCLOUDPROCESSOR_HPP
-#define POINTCLOUDPROCESSOR_HPP
+#pragma once
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -7,7 +6,7 @@
 // #include "open3d/Open3D.h"
 #include <string>
 #include <vector>
-#include "RGBFrames.hpp"
+#include "RGBCloud.hpp"
 #include "FrameData.hpp"
 #include "cloudSmooth.hpp"
 #include <tf/transform_datatypes.h>
@@ -32,7 +31,7 @@ public:
 
     // Function to convert a PCL Point Cloud to an Open3D Point Cloud
     std::shared_ptr<open3d::geometry::PointCloud> ConvertPCLToOpen3D(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pcl_cloud)
-        {
+    {
         // Create an Open3D PointCloud object
         auto o3d_cloud = std::make_shared<open3d::geometry::PointCloud>();
 
@@ -79,8 +78,7 @@ public:
         return pcl_cloud;
     }
 
-    std::shared_ptr<open3d::geometry::PointCloud> ConvertMeshToPointCloud(
-        const std::shared_ptr<open3d::geometry::TriangleMesh> &mesh)
+    std::shared_ptr<open3d::geometry::PointCloud> ConvertMeshToPointCloud(const std::shared_ptr<open3d::geometry::TriangleMesh> &mesh)
     {
 
         // Create a new point cloud
@@ -122,19 +120,6 @@ public:
 
         return Eigen::Vector2d(x, y);
     }
-
-    // Pose6D getPose6DFromOdom(nav_msgs::Odometry::ConstPtr _odom)
-    // {
-    //     auto tx = _odom->pose.pose.position.x;
-    //     auto ty = _odom->pose.pose.position.y;
-    //     auto tz = _odom->pose.pose.position.z;
-
-    //     double roll, pitch, yaw;
-    //     geometry_msgs::Quaternion quat = _odom->pose.pose.orientation;
-    //     tf::Matrix3x3(tf::Quaternion(quat.x, quat.y, quat.z, quat.w)).getRPY(roll, pitch, yaw);
-
-    //     return Pose6D{tx, ty, tz, roll, pitch, yaw};
-    // } // getOdom
 
     Pose6D getPose6DFromOdom(const Pose &pose)
     {
@@ -204,6 +189,67 @@ public:
             return false;
     }
 
+    // void transformPointCloudToCamera(const FrameData::Ptr &keyframe, pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud, pcl::PointCloud<pcl::PointXYZI>::Ptr &cloudInCameraPose)
+    // {
+    //     Pose voPose = getPoseFromOdom(keyframe->pose);
+
+    //     Eigen::Isometry3d t_c2w = Eigen::Isometry3d::Identity();
+    //     t_c2w.translate(Eigen::Vector3d(voPose.x, voPose.y, voPose.z));
+    //     t_c2w.rotate(Eigen::Quaterniond(voPose.qw, voPose.qx, voPose.qy, voPose.qz));
+
+    //     Eigen::Affine3f transformation_w2c = t_c2w.inverse().cast<float>();
+    //     pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c);
+    // }
+
+    float computeOrientationScore(const pcl::PointXYZI &point, const Pose &pose) {
+        // 改进后的方向分数计算方法，基于视角与点的夹角
+        Eigen::Vector3d pointVec(point.x, point.y, point.z);
+        Eigen::Vector3d cameraVec(pose.x, pose.y, pose.z);
+        
+        // 将相机位置设置为原点并计算方向向量
+        Eigen::Vector3d viewVec = pointVec - cameraVec;
+        
+        // 计算方向向量和点向量的夹角
+        double cosAngle = viewVec.normalized().dot(Eigen::Vector3d(0, 0, 1)); // 这里假设相机的正视方向为z轴方向
+        
+        // 将cosine值转化为分数，范围在[0.2, 1]之间，角度越小分数越高
+        float orientationScore = static_cast<float>((cosAngle + 1.0) / 2.0); // 将[-1, 1]映射到[0, 1]
+        orientationScore = 0.2f + 0.8f * orientationScore; // 映射到[0.2, 1]
+        return orientationScore;
+    }
+
+    float computeDistanceScore(const pcl::PointXYZI &point) {
+        // 改进后的距离分数计算方法，根据点与相机的距离计算分数
+        float distance = std::sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
+        
+        // 假设一个最佳距离，用于计算分数
+        float optimalDistance = 2.0f; // 可以根据实际情况调整
+        float distanceDifference = std::abs(distance - optimalDistance);
+        
+        // 距离分数越接近最佳距离分数越高，范围在[0.2, 1]之间
+        float maxDifference = optimalDistance; // 最大差值，假设为最佳距离的两倍
+        float normalizedDifference = std::min(distanceDifference / maxDifference, 1.0f);
+        float distanceScore = 1.0f - normalizedDifference;
+        distanceScore = 0.2f + 0.8f * distanceScore; // 映射到[0.2, 1]
+        return distanceScore;
+    }
+
+    void removePointsWithNoColor(RGBCloud &rgbCloud) {
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr filteredCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+
+        for (const auto& point : rgbCloud.cloudWithSmoothedColor->points) {
+            if (point.r != 0 || point.g != 0 || point.b != 0) {
+                filteredCloud->points.push_back(point);
+            }
+        }
+
+        filteredCloud->width = filteredCloud->points.size();
+        filteredCloud->height = 1;
+        filteredCloud->is_dense = true;
+
+        rgbCloud.cloudWithSmoothedColor = filteredCloud;
+    }
+
 private:
     std::string pointCloudPath;
     std::string odometryPath;
@@ -225,10 +271,10 @@ private:
     std::vector<FrameData::Ptr> frames;
     std::vector<FrameData::Ptr> selectedKeyframes;
 
-    Eigen::Matrix3d R_lidar2cam;   // Rotation matrix from lidar to camera
-    Eigen::Vector3d t_lidar2cam;   // Translation vector from lidar to camera
-    Eigen::Isometry3d T_lidar2cam; // Transformation matrix from lidar to camera
-    Eigen::Isometry3d T_camera_lidar_optimized; // Optimized camera_lidar extrinsics 
+    Eigen::Matrix3d R_lidar2cam;                // Rotation matrix from lidar to camera
+    Eigen::Vector3d t_lidar2cam;                // Translation vector from lidar to camera
+    Eigen::Isometry3d T_lidar2cam;              // Transformation matrix from lidar to camera
+    Eigen::Isometry3d T_camera_lidar_optimized; // Optimized camera_lidar extrinsics
                                                 // , plz noted that this is not the true extrinsics
                                                 // , it just the compensated value generated from NID-optiminizatiom
 
@@ -238,34 +284,26 @@ private:
     const std::string camera_model = "pinhole";
     std::vector<double> K_camera_coefficients{4, 0.0};
 
-
     void loadPointCloud();
     void loadImagesAndOdometry();
-
-    // void loadVisualOdometry();
-    // void loadImages();
     void pcdColorization(std::vector<FrameData::Ptr> &keyframes);
-    // void applyNIDBasedPoseOptimization(FrameData::ConstPtr &keyframes);
+    void pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &keyframes);
     void applyNIDBasedPoseOptimization(std::vector<FrameData::Ptr> &keyframes);
     void viewCullingAndSaveFilteredPcds(std::vector<FrameData::Ptr> &keyframes);
     void generateColorMap(const FrameData &frame,
                           pcl::PointCloud<pcl::PointXYZI>::Ptr &pc,
                           pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
-
     void generateSegmentMap(const FrameData &frame,
                             pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color,
                             pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented);
-
     void generateSegmentMapWithColor(pcl::PointCloud<PointXYZRGBMask>::Ptr &pc_color_segmented,
                                      pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc_color);
-
     void visualizePointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud);
-    // Pose6D getPose6DFromOdom(const Pose &pose);
-    // Pose getPoseFromOdom(const Pose &pose);
-    // void colorizePoints();
-    // void smoothColors();
-    void saveColorizedPointCloud();
-    // void generateColorMap();
-};
+    void smoothColors(RGBCloud &rgbCloud);
+    void smoothColorsWithLocalRegion(RGBCloud &rgbCloud, float radius);
 
-#endif // POINTCLOUDPROCESSOR_HPP
+    void saveColorizedPointCloud();
+    void saveColorizedPointCloud(const RGBCloud &rgbCloud);
+
+
+};

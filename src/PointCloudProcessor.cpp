@@ -1,9 +1,13 @@
 #include "PointCloudProcessor.hpp"
 #include "cloudSmooth.hpp"
+#include "RGBCloud.hpp"
 #include <pcl/io/pcd_io.h>          // For loading point cloud
 #include <pcl/filters/voxel_grid.h> // Example for downsampling
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/common/transforms.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/octree/octree_search.h>
+
 #include <iostream>
 #include <fstream> // For reading odometry file
 #include <filesystem>
@@ -13,6 +17,7 @@
 #include "calibrate.cpp"
 #include <vlcal/calib/view_culling.hpp>
 #include <camera/create_camera.hpp>
+#include <omp.h>
 
 PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &odometryPath,
@@ -149,7 +154,7 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
         keyframe->culledPCDPath = culledPCDPath;
         pcl::PCDWriter pcd_writer;
 
-        if (pcd_writer.writeBinaryCompressed(culledPCDPath, *culledPCD) == -1)
+        if (pcd_writer.writeASCII(culledPCDPath, *culledPCD) == -1)
         {
             throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
         }
@@ -259,7 +264,7 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
 //         std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
 //         pcl::PCDWriter pcd_writer;
 
-//         if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
+//         if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
 //         {
 //             throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
 //         }
@@ -285,7 +290,7 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
 //         std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(frame.imageTimestamp) + ".pcd");
 //         pcl::PCDWriter pcd_writer;
 
-//         if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
+//         if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
 //         {
 //             throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
 //         }
@@ -305,6 +310,14 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
 //     }
 // }
 
+/**
+ * Applies field of view detection and hidden point removal to the given frame's point cloud.
+ * This function transforms the point cloud from the world coordinate system to the camera coordinate system,
+ * removes points that are occluded or hidden by other objects in the scene, and applies point cloud colorization
+ * by projecting the point cloud onto the image frame and assigning the closest color to each point.
+ *
+ * @param frame The frame data containing the point cloud and camera pose.
+ */
 void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes)
 {
     // 0. Init objects
@@ -344,13 +357,8 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
         }
 
         pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c_optimized);
-
-        // pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud_filtered(new pcl::PointCloud<pcl::PointXYZI>());
-        // pcl::copyPointCloud(*cloudInCameraPose, *pcl_cloud_filtered);
-
         camera::GenericCameraBase::ConstPtr proj = camera::create_camera(camera_model, K_camera_coefficients, D_camera);
         vlcal::ViewCullingParams view_culling_params;
-        // view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
         std::cout << "before view_culling!" << std::endl;
         vlcal::ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
 
@@ -368,7 +376,7 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
             std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_colored" + ".pcd");
             pcl::PCDWriter pcd_writer;
 
-            if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
+            if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
             {
                 throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
             }
@@ -386,7 +394,7 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
             std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_colored" + ".pcd");
             pcl::PCDWriter pcd_writer;
 
-            if (pcd_writer.writeBinary(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
+            if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
             {
                 throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
             }
@@ -397,8 +405,205 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
             *cloudInWorldWithRGB += *scanInWorldWithRGB;
         }
     }
+    saveColorizedPointCloud();
 }
 
+void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &keyframes){
+    RGBCloud rgbCloud;
+    // rgbCloud.cloudNoColor = cloud;
+    pcl::copyPointCloud(*cloud, *rgbCloud.cloudWithSmoothedColor);
+
+    pcl::KdTreeFLANN<pcl::PointXYZI> kdtree;
+    kdtree.setInputCloud(cloud);
+    const float epsilon = 1e-5; // 定义容差 
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZI>());
+
+    for (size_t keyframeIndex = 0; keyframeIndex < keyframes.size(); ++keyframeIndex) {
+        auto &keyframe = keyframes[keyframeIndex];
+
+        Pose voPose = getPoseFromOdom(keyframe->pose);
+        Eigen::Isometry3d t_c2w = Eigen::Isometry3d::Identity();
+        t_c2w.translate(Eigen::Vector3d(voPose.x, voPose.y, voPose.z));
+        t_c2w.rotate(Eigen::Quaterniond(voPose.qw, voPose.qx, voPose.qy, voPose.qz));
+        Eigen::Affine3f transformation_w2c = t_c2w.inverse().cast<float>();
+        Eigen::Affine3f transformation_w2c_optimized = t_c2w.inverse().cast<float>();
+        Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
+        Eigen::Affine3f transformation_c2w_optimized = transformation_c2w;
+
+        if (enableNIDOptimize){
+            // transformation_c2w_optimized
+            Eigen::Isometry3d t_c2w_optimized = t_c2w * T_camera_lidar_optimized;
+            transformation_c2w_optimized = t_c2w_optimized.cast<float>();
+            transformation_w2c_optimized = transformation_c2w_optimized.inverse();
+        }
+
+        pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c_optimized);
+        camera::GenericCameraBase::ConstPtr proj = camera::create_camera(camera_model, K_camera_coefficients, D_camera);
+        vlcal::ViewCullingParams view_culling_params;
+        std::cout << "before view_culling!" << std::endl;
+        vlcal::ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
+
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPoseCulled = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());        
+        std::cout <<" the point size of cloudInCameraPoseCulled is " << cloudInCameraPoseCulled->size() << std::endl;
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr coloredCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+        generateColorMap(*keyframe, cloudInCameraPoseCulled, coloredCloud);
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr coloredCloudInWorld(new pcl::PointCloud<pcl::PointXYZRGB>());
+        pcl::transformPointCloud(*coloredCloud, *coloredCloudInWorld, transformation_c2w.cast<float>());
+
+        // std::cout<< "this is 1" << std::endl;
+        for (size_t i = 0; i < coloredCloudInWorld->points.size(); ++i) {
+            auto& ptColorInWrd = coloredCloudInWorld->points[i];
+            // std::cout<< "this is 2" << std::endl;
+
+            // 将 ptColorInWrd 转换为 pcl::PointXYZI
+            pcl::PointXYZI searchPoint;
+            searchPoint.x = ptColorInWrd.x;
+            searchPoint.y = ptColorInWrd.y;
+            searchPoint.z = ptColorInWrd.z;
+        //     // 使用容差比较点的坐标
+        //     auto it = std::find_if(cloud->points.begin(), cloud->points.end(), 
+        //                         [&ptColorInWrd, epsilon](const pcl::PointXYZI& p){
+        //                             return (std::abs(p.x - ptColorInWrd.x) < epsilon) &&
+        //                                    (std::abs(p.y - ptColorInWrd.y) < epsilon) &&
+        //                                    (std::abs(p.z - ptColorInWrd.z) < epsilon);
+        //                         });
+
+        //     if (it != cloud->points.end()) {
+        //         int pointIndex = std::distance(cloud->points.begin(), it);
+        //         float orientationScore = computeOrientationScore(cloudInCameraPose->points[i], keyframe->pose);
+        //         float distanceScore = computeDistanceScore(cloudInCameraPose->points[i]);
+        //         float finalScore = orientationScore * distanceScore;
+
+        //         RGBScore rgbScore(coloredCloudInWorld->points[i].r, coloredCloudInWorld->points[i].g, coloredCloudInWorld->points[i].b, orientationScore, distanceScore, finalScore);
+        //         rgbCloud.addPointData(pointIndex, rgbScore, keyframeIndex);
+        //     }
+        // }
+
+            // 使用 k-d 树进行近邻搜索
+            std::vector<int> pointIdxRadiusSearch;
+            std::vector<float> pointRadiusSquaredDistance;
+
+            if (kdtree.radiusSearch(searchPoint, epsilon, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0) {
+                for (size_t j = 0; j < pointIdxRadiusSearch.size(); ++j) {
+                    int pointIndex = pointIdxRadiusSearch[j];
+
+                    // 将世界坐标系下的点转换到相机坐标系
+                    Eigen::Vector4f ptWorld(ptColorInWrd.x, ptColorInWrd.y, ptColorInWrd.z, 1.0f);
+                    Eigen::Vector4f ptCamera = transformation_c2w.inverse() * ptWorld;
+
+                    pcl::PointXYZI pointInCamera;
+                    pointInCamera.x = ptCamera.x();
+                    pointInCamera.y = ptCamera.y();
+                    pointInCamera.z = ptCamera.z();
+
+                    float orientationScore = computeOrientationScore(pointInCamera, keyframe->pose);
+                    float distanceScore = computeDistanceScore(pointInCamera);
+                    float finalScore = (orientationScore + distanceScore) / 2.0;
+
+                    RGBScore rgbScore(ptColorInWrd.r, ptColorInWrd.g, ptColorInWrd.b, orientationScore, distanceScore, finalScore);
+                    rgbCloud.addPointData(pointIndex, rgbScore, keyframeIndex);
+                }
+            }
+        }
+    }
+    // smoothColors(rgbCloud);
+    smoothColorsWithLocalRegion(rgbCloud, 0.1); // 添加基于局部区域的颜色平滑
+    removePointsWithNoColor(rgbCloud);
+    saveColorizedPointCloud(rgbCloud);
+
+}
+
+void PointCloudProcessor::smoothColors(RGBCloud &rgbCloud) {
+    std::cout<< "rgbCloud.cloudWithSmoothedColor->points size is: " << rgbCloud.cloudWithSmoothedColor->points.size() << std::endl;
+    for (auto &point : rgbCloud.cloudWithSmoothedColor->points) {
+        int pointIndex = &point - &rgbCloud.cloudWithSmoothedColor->points[0];
+        PointData pointData = rgbCloud.getPointData(pointIndex);
+
+        std::sort(pointData.rgbScores.begin(), pointData.rgbScores.end(), [](const RGBScore &a, const RGBScore &b) {
+            return a.finalScore > b.finalScore;
+        });
+
+        size_t M = std::min(pointData.rgbScores.size(), size_t(10));//TODO: hardcode
+        float totalScore = 0;
+        float r = 0, g = 0, b = 0;
+        for (size_t j = 0; j < M; ++j) {
+            float score = pointData.rgbScores[j].finalScore;
+            r += pointData.rgbScores[j].r * score;
+            g += pointData.rgbScores[j].g * score;
+            b += pointData.rgbScores[j].b * score;
+            totalScore += score;
+        }
+
+        point.r = static_cast<uint8_t>(r / totalScore);
+        point.g = static_cast<uint8_t>(g / totalScore);
+        point.b = static_cast<uint8_t>(b / totalScore);
+    }
+}
+
+#include <pcl/octree/octree_search.h>
+
+void PointCloudProcessor::smoothColorsWithLocalRegion(RGBCloud &rgbCloud, float radius) {
+    // 创建一个新的点云，用于存储平滑后的颜色
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr smoothedColors(new pcl::PointCloud<pcl::PointXYZRGB>());
+    smoothedColors->resize(rgbCloud.cloudWithSmoothedColor->points.size());
+
+    // 创建八叉树用于邻域搜索
+    float resolution = radius;
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(resolution);
+    octree.setInputCloud(rgbCloud.cloudWithSmoothedColor);
+    octree.addPointsFromInputCloud();
+
+    // 使用 OpenMP 并行化循环
+    #pragma omp parallel for
+    for (size_t i = 0; i < rgbCloud.cloudWithSmoothedColor->points.size(); ++i) {
+        auto &point = rgbCloud.cloudWithSmoothedColor->points[i];
+
+        // 定义用于存储邻域搜索结果的向量
+        std::vector<int> pointIdxRadiusSearch;
+        std::vector<float> pointRadiusSquaredDistance;
+
+        // 进行半径搜索，找到当前点的邻域点
+        if (octree.radiusSearch(point, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0) {
+            // 初始化颜色累加值和总分数
+            float totalScore = 0;
+            float r = 0, g = 0, b = 0;
+
+            // 遍历邻域点，进行颜色加权平均
+            for (size_t j = 0; j < pointIdxRadiusSearch.size(); ++j) {
+                auto &neighborPoint = rgbCloud.cloudWithSmoothedColor->points[pointIdxRadiusSearch[j]];
+                float score = 1.0f / (1.0f + pointRadiusSquaredDistance[j]); // 简单的反距离权重
+
+                // 累加颜色值和分数
+                r += neighborPoint.r * score;
+                g += neighborPoint.g * score;
+                b += neighborPoint.b * score;
+                totalScore += score;
+            }
+
+            // 设置平滑后的颜色值
+            if (totalScore > 0) {
+                smoothedColors->points[i].r = static_cast<uint8_t>(r / totalScore);
+                smoothedColors->points[i].g = static_cast<uint8_t>(g / totalScore);
+                smoothedColors->points[i].b = static_cast<uint8_t>(b / totalScore);
+            } else {
+                // 如果总分数为零，保留原颜色
+                smoothedColors->points[i] = point;
+            }
+        } else {
+            // 如果没有找到邻域点，保留原点的颜色值
+            smoothedColors->points[i] = point;
+        }
+    }
+
+    // 将平滑后的颜色应用到原始点云
+    for (size_t i = 0; i < rgbCloud.cloudWithSmoothedColor->points.size(); ++i) {
+        rgbCloud.cloudWithSmoothedColor->points[i].r = smoothedColors->points[i].r;
+        rgbCloud.cloudWithSmoothedColor->points[i].g = smoothedColors->points[i].g;
+        rgbCloud.cloudWithSmoothedColor->points[i].b = smoothedColors->points[i].b;
+    }
+}
 
 void PointCloudProcessor::generateColorMap(const FrameData &frame,
                                            pcl::PointCloud<pcl::PointXYZI>::Ptr &pc,
@@ -573,7 +778,7 @@ void PointCloudProcessor::saveColorizedPointCloud()
             std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
             pcl::PCDWriter pcd_writer;
 
-            if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGBandMask) == -1)
+            if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *cloudInWorldWithRGBandMask) == -1)
             {
                 throw std::runtime_error("Couldn't save colorized and segment colored point cloud.");
             }
@@ -587,7 +792,7 @@ void PointCloudProcessor::saveColorizedPointCloud()
             {
                 std::string cloudInWorldWithMaskandMappedColorDir(outputPath + "cloudInWorldWithMaskAndMappedColor.pcd");
                 pcl::PCDWriter pcd_writer_temp;
-                pcd_writer_temp.writeBinary(cloudInWorldWithMaskandMappedColorDir, *cloudInWorldWithMaskandMappedColor);
+                pcd_writer_temp.writeASCII(cloudInWorldWithMaskandMappedColorDir, *cloudInWorldWithMaskandMappedColor);
             }
         }
     }
@@ -598,13 +803,39 @@ void PointCloudProcessor::saveColorizedPointCloud()
             std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
             pcl::PCDWriter pcd_writer;
 
-            if (pcd_writer.writeBinary(cloudInWorldWithRGBDir, *cloudInWorldWithRGB) == -1)
+            if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *cloudInWorldWithRGB) == -1)
             {
                 throw std::runtime_error("Couldn't save colorized point cloud.");
             }
             else
             {
                 cout << "All colored cloud saved to: " << cloudInWorldWithRGB << endl;
+            }
+        }
+    }
+}
+
+void PointCloudProcessor::saveColorizedPointCloud(const RGBCloud &rgbCloud) {
+    if (enableMaskSegmentation) {
+        if (rgbCloud.cloudWithSmoothedColor->size() > 0) {
+            std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
+            pcl::PCDWriter pcd_writer;
+            //TODO: fix it, replace cloudWithSmoothedColor
+            if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *rgbCloud.cloudWithSmoothedColor) == -1) {
+                throw std::runtime_error("Couldn't save colorized and segment colored point cloud.");
+            } else {
+                std::cout << "All colored and segment colored cloud saved to: " << rgbCloud.cloudWithSmoothedColor << std::endl;
+            }
+        }
+    } else {
+        if (rgbCloud.cloudWithSmoothedColor->size() > 0) {
+            std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
+            pcl::PCDWriter pcd_writer;
+
+            if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *rgbCloud.cloudWithSmoothedColor) == -1) {
+                throw std::runtime_error("Couldn't save colorized point cloud.");
+            } else {
+                std::cout << "All colored cloud saved to: " << rgbCloud.cloudWithSmoothedColor << std::endl;
             }
         }
     }
@@ -662,9 +893,10 @@ void PointCloudProcessor::process()
         applyNIDBasedPoseOptimization(selectedKeyframes);
     }
     
-    pcdColorization(selectedKeyframes);
+    // pcdColorization(selectedKeyframes);
+    // saveColorizedPointCloud();
 
-    saveColorizedPointCloud();
+    pcdColorizationAndSmooth(selectedKeyframes);
 }
 
 void PointCloudProcessor::generateResultStorageFolder()
@@ -689,7 +921,7 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 1.0; // meter, 1
+    const double distThreshold = 1; // meter, 1
     const double angThreshold = 25.0; // degree. 25
 
     for (auto &frame : frames)
