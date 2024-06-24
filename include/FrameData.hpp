@@ -72,6 +72,8 @@ public:
 
   pcl::PointCloud<pcl::PointXYZI>::Ptr visiblePoints;
 
+  Pose initTLidarCamera;
+  
   void addSegmentImage(const std::string &maskImagePath);
   // addImage(cv::Mat image, double timestamp);
   void addPts(const pcl::PointCloud<pcl::PointXYZI>::Ptr &points);

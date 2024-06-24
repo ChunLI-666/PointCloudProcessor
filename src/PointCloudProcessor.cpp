@@ -18,6 +18,7 @@
 #include <vlcal/calib/view_culling.hpp>
 #include <camera/create_camera.hpp>
 #include <omp.h>
+#include "initial_guess_manual.cpp"
 
 PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &odometryPath,
@@ -112,6 +113,23 @@ void PointCloudProcessor::applyNIDBasedPoseOptimization(std::vector<FrameData::P
     calib.calibrate();
     // Eigen::Isometry3d T_camera_lidar_optimized;
     T_camera_lidar_optimized = calib.getOptimizedPose();
+
+}
+
+void PointCloudProcessor::applyInitialGuessManual(std::vector<FrameData::Ptr> &keyframes)
+{
+
+    // // Apply Multi-cost NID-based pose optimization
+    // vlcal::VisualLiDARCalibration calib(camera_model, K_camera_coefficients, D_camera, keyframes);
+    // calib.calibrate();
+    // T_camera_lidar_optimized = calib.getOptimizedPose();
+
+    // Apply manual initial guess to optimize the camera-lidar pose
+    vlcal::InitialGuessManual init_guess(camera_model, K_camera_coefficients, D_camera, keyframes);
+
+    // Main thread will be blocked until user exit init_guess by closing the GUI window
+    init_guess.spin();
+
 
 }
 
@@ -435,6 +453,8 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
             Eigen::Isometry3d t_c2w_optimized = t_c2w * T_camera_lidar_optimized;
             transformation_c2w_optimized = t_c2w_optimized.cast<float>();
             transformation_w2c_optimized = transformation_c2w_optimized.inverse();
+        } else if(enableInitialGuessManual){
+            // TODO:
         }
 
         pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c_optimized);
@@ -891,6 +911,8 @@ void PointCloudProcessor::process()
 
     if(enableNIDOptimize){
         applyNIDBasedPoseOptimization(selectedKeyframes);
+    }else if (enableInitialGuessManual){
+        applyInitialGuessManual(selectedKeyframes);
     }
     
     // pcdColorization(selectedKeyframes);

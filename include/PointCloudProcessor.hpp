@@ -259,6 +259,7 @@ private:
     bool enableMLS;
     bool enableNIDOptimize;
     bool enableMaskSegmentation;
+    bool enableInitialGuessManual;
     MLSParameters mlsParams;
 
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
@@ -289,6 +290,7 @@ private:
     void pcdColorization(std::vector<FrameData::Ptr> &keyframes);
     void pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &keyframes);
     void applyNIDBasedPoseOptimization(std::vector<FrameData::Ptr> &keyframes);
+    void applyInitialGuessManual(std::vector<FrameData::Ptr> &keyframes);
     void viewCullingAndSaveFilteredPcds(std::vector<FrameData::Ptr> &keyframes);
     void generateColorMap(const FrameData &frame,
                           pcl::PointCloud<pcl::PointXYZI>::Ptr &pc,
