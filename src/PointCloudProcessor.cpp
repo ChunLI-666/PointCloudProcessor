@@ -18,7 +18,7 @@
 #include <vlcal/calib/view_culling.hpp>
 #include <camera/create_camera.hpp>
 #include <omp.h>
-#include "initial_guess_manual.cpp"
+#include <vlcal/initial_guess_manual.hpp>
 
 PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &odometryPath,
@@ -26,14 +26,16 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
                                          const std::string &maskImageFolder,
                                          const std::string &outputPath,
                                          const bool &enableMLS,
-                                         const bool &enableNIDOptimize)
+                                         const bool &enableNIDOptimize,
+                                         const bool &PointCloudProcessor)
     : pointCloudPath(pointCloudPath),
       odometryPath(odometryPath),
       imagesFolder(imagesFolder),
       maskImageFolder(maskImageFolder),
       outputPath(outputPath),
       enableMLS(enableMLS),
-      enableNIDOptimize(enableNIDOptimize)
+      enableNIDOptimize(enableNIDOptimize),
+      enableInitialGuessManual(enableInitialGuessManual)
 
 {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZI>());

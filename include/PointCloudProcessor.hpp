@@ -2,7 +2,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <open3d/Open3D.h>
+// #include <open3d/Open3D.h>
 // #include "open3d/Open3D.h"
 #include <string>
 #include <vector>
@@ -21,7 +21,8 @@ public:
         const std::string &maskImageFolder,
         const std::string &outputPath,
         const bool &enableMLS,
-        const bool &enableNIDOptimize);
+        const bool &enableNIDOptimize,
+        const bool &enableInitialGuessManual);
 
     void process();
 
@@ -29,72 +30,72 @@ public:
 
     void selectKeyframes();
 
-    // Function to convert a PCL Point Cloud to an Open3D Point Cloud
-    std::shared_ptr<open3d::geometry::PointCloud> ConvertPCLToOpen3D(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pcl_cloud)
-    {
-        // Create an Open3D PointCloud object
-        auto o3d_cloud = std::make_shared<open3d::geometry::PointCloud>();
+    // // Function to convert a PCL Point Cloud to an Open3D Point Cloud
+    // std::shared_ptr<open3d::geometry::PointCloud> ConvertPCLToOpen3D(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pcl_cloud)
+    // {
+    //     // Create an Open3D PointCloud object
+    //     auto o3d_cloud = std::make_shared<open3d::geometry::PointCloud>();
 
-        // Reserve space for points and colors
-        o3d_cloud->points_.reserve(pcl_cloud->size());
-        o3d_cloud->colors_.reserve(pcl_cloud->size());
+    //     // Reserve space for points and colors
+    //     o3d_cloud->points_.reserve(pcl_cloud->size());
+    //     o3d_cloud->colors_.reserve(pcl_cloud->size());
 
-        // Loop through the PCL point cloud and copy over the points and colors
-        for (const auto &point : *pcl_cloud)
-        {
-            // Add the point coordinates
-            o3d_cloud->points_.emplace_back(point.x, point.y, point.z);
+    //     // Loop through the PCL point cloud and copy over the points and colors
+    //     for (const auto &point : *pcl_cloud)
+    //     {
+    //         // Add the point coordinates
+    //         o3d_cloud->points_.emplace_back(point.x, point.y, point.z);
 
-            // Add the color, converting from RGB to floating-point representation
-            o3d_cloud->colors_.emplace_back(point.r / 255.0, point.g / 255.0, point.b / 255.0);
-        }
+    //         // Add the color, converting from RGB to floating-point representation
+    //         o3d_cloud->colors_.emplace_back(point.r / 255.0, point.g / 255.0, point.b / 255.0);
+    //     }
 
-        return o3d_cloud;
-    }
+    //     return o3d_cloud;
+    // }
 
-    // Function to convert an Open3D Point Cloud to a PCL Point Cloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr ConvertOpen3DToPCL(const std::shared_ptr<open3d::geometry::PointCloud> &o3d_cloud)
-    {
-        // Create a PCL PointCloud object
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    // // Function to convert an Open3D Point Cloud to a PCL Point Cloud
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr ConvertOpen3DToPCL(const std::shared_ptr<open3d::geometry::PointCloud> &o3d_cloud)
+    // {
+    //     // Create a PCL PointCloud object
+    //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
-        // Reserve space for points
-        pcl_cloud->points.resize(o3d_cloud->points_.size());
+    //     // Reserve space for points
+    //     pcl_cloud->points.resize(o3d_cloud->points_.size());
 
-        // Loop through the Open3D point cloud and copy over the points and colors
-        for (size_t i = 0; i < o3d_cloud->points_.size(); i++)
-        {
-            // Add the point coordinates
-            pcl_cloud->points[i].x = o3d_cloud->points_[i].x();
-            pcl_cloud->points[i].y = o3d_cloud->points_[i].y();
-            pcl_cloud->points[i].z = o3d_cloud->points_[i].z();
+    //     // Loop through the Open3D point cloud and copy over the points and colors
+    //     for (size_t i = 0; i < o3d_cloud->points_.size(); i++)
+    //     {
+    //         // Add the point coordinates
+    //         pcl_cloud->points[i].x = o3d_cloud->points_[i].x();
+    //         pcl_cloud->points[i].y = o3d_cloud->points_[i].y();
+    //         pcl_cloud->points[i].z = o3d_cloud->points_[i].z();
 
-            // Add the color, converting from floating-point to RGB representation
-            pcl_cloud->points[i].r = static_cast<uint8_t>(o3d_cloud->colors_[i][0] * 255);
-            pcl_cloud->points[i].g = static_cast<uint8_t>(o3d_cloud->colors_[i][1] * 255);
-            pcl_cloud->points[i].b = static_cast<uint8_t>(o3d_cloud->colors_[i][2] * 255);
-        }
+    //         // Add the color, converting from floating-point to RGB representation
+    //         pcl_cloud->points[i].r = static_cast<uint8_t>(o3d_cloud->colors_[i][0] * 255);
+    //         pcl_cloud->points[i].g = static_cast<uint8_t>(o3d_cloud->colors_[i][1] * 255);
+    //         pcl_cloud->points[i].b = static_cast<uint8_t>(o3d_cloud->colors_[i][2] * 255);
+    //     }
 
-        return pcl_cloud;
-    }
+    //     return pcl_cloud;
+    // }
 
-    std::shared_ptr<open3d::geometry::PointCloud> ConvertMeshToPointCloud(const std::shared_ptr<open3d::geometry::TriangleMesh> &mesh)
-    {
+    // std::shared_ptr<open3d::geometry::PointCloud> ConvertMeshToPointCloud(const std::shared_ptr<open3d::geometry::TriangleMesh> &mesh)
+    // {
 
-        // Create a new point cloud
-        auto point_cloud = std::make_shared<open3d::geometry::PointCloud>();
+    //     // Create a new point cloud
+    //     auto point_cloud = std::make_shared<open3d::geometry::PointCloud>();
 
-        point_cloud->points_.reserve(mesh->vertices_.size());
-        point_cloud->colors_.reserve(mesh->vertices_.size());
+    //     point_cloud->points_.reserve(mesh->vertices_.size());
+    //     point_cloud->colors_.reserve(mesh->vertices_.size());
 
-        for (const auto &vertex : mesh->vertices_)
-        {
-            point_cloud->points_.push_back(vertex);
-            point_cloud->colors_.push_back(Eigen::Vector3d(0.5, 0.5, 0.5));
-        }
+    //     for (const auto &vertex : mesh->vertices_)
+    //     {
+    //         point_cloud->points_.push_back(vertex);
+    //         point_cloud->colors_.push_back(Eigen::Vector3d(0.5, 0.5, 0.5));
+    //     }
 
-        return point_cloud;
-    }
+    //     return point_cloud;
+    // }
 
     Eigen::Vector2d distort(Eigen::Vector2d point)
     {
