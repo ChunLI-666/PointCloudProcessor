@@ -40,4 +40,16 @@ Segment mask:
 --images_folder /mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/raw_images/ \
 --output_path /mnt/disk01/data/zhongnna/_2024-05-16-17-22-50-reconstruction/fast_lio_result/ \
 --enableMLS 0 \
---enableNIDOptimize 1
+--enableNIDOptimize 0 \ 
+--enableInitialGuessManual 1
+
+## inside docker container
+./PointCloudProcessor \
+--point_cloud_path /sandbox/Documents/fast_lio_result/scans-mls-clean.pcd \
+--odometry_path /sandbox/Documents/fast_lio_result/vo_interpolated_odom.txt \
+--images_folder /sandbox/Documents/fast_lio_result/raw_images/ \
+--output_path /sandbox/Documents/fast_lio_result/ \
+--enableMLS 0 \
+--enableNIDOptimize 0 \ 
+--enableInitialGuessManual 1
+
