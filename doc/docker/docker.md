@@ -51,7 +51,7 @@ sudo -E apt install -y tmux zsh git vim make cmake tree aptitude \
                        htop curl rsync software-properties-common \
                        locales mlocate aria2 python3-pip \
                        libomp-dev libgoogle-glog-dev libgflags-dev libatlas-base-dev libsuitesparse-dev \
-                       libboost-all-dev libglm-dev libglfw3-dev libpng-dev libjpeg-dev 
+                       libboost-all-dev libglm-dev libglfw3-dev libpng-dev libjpeg-dev libfmt-dev 
 
 
 
