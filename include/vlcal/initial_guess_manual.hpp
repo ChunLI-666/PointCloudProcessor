@@ -165,6 +165,8 @@ namespace vlcal
       // }
 
       auto viewer = guik::LightViewer::instance();
+      bool should_terminate = false; // 用于控制循环的标志变量
+
       guik::ModelControl T_lidar_camera_gizmo("T_lidar_camera", init_T_lidar_camera.matrix().cast<float>());
       viewer->register_ui_callback ("gizmo", [&]
                                    {
@@ -234,15 +236,7 @@ namespace vlcal
 
         const std::vector<double> values = {trans.x(), trans.y(), trans.z(), quat.x(), quat.y(), quat.z(), quat.w()};
         config["results"]["init_T_lidar_camera"] = values;
-
-        // std::ofstream ofs(data_path + "/calib.json");
-        // if (!ofs) {
-        //   std::cerr << vlcal::console::bold_red << "error: failed to open " << data_path + "/calib.json"
-        //             << " for writing" << vlcal::console::reset << std::endl;
-        // } else {
-        //   ofs << config.dump(2) << std::endl;
-        // }
-
+        
         keyframe->addManualOptimizedPose(T_lidar_camera);
         std::stringstream sst;
         sst << "--- T_lidar_camera ---" << std::endl;
@@ -250,11 +244,14 @@ namespace vlcal
         sst << "saved to " << data_path + "/calib.json";
 
         viewer->append_text(sst.str());
+
+        // 设置标志变量为true以终止spin循环
+        should_terminate = true;
       }
 
       ImGui::End(); });
 
-      while (vis->spin_once())
+      while (!should_terminate && vis->spin_once())
       {
         cv::waitKey(1);
       }

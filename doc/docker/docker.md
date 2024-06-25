@@ -22,6 +22,23 @@ docker run -it \
     --network host \
     -v /etc/timezone:/etc/timezone:ro \
     -d osrf/ros:noetic-desktop-full 
+
+docker run -it \
+    --gpus all \
+    --workdir=/sandbox/ \
+    -v $HOME:/sandbox/ \
+    -e HOME=/root/ \
+    -e "QT_X11_NO_MITSHM=1" \
+    -e GDK_SCALE \
+    -e GDK_DPI_SCALE \
+    -e DISPLAY=unix$DISPLAY \
+    --env="DISPLAY" \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    --name=pcd_process \
+    --privileged \
+    --network host \
+    -v /etc/timezone:/etc/timezone:ro \
+    -d pcl_process_backup
 ```
 
 
@@ -42,6 +59,10 @@ export http_proxy=http://localhost:3128
 export https_proxy=http://localhost:3128
 export ftp_proxy=http://localhost:3128
 
+# For personal pc via using proxy tools such as clash 
+export http_proxy=http://localhost:7890
+export https_proxy=http://localhost:7890
+export ftp_proxy=http://localhost:7890
 # test X11 forwarding
 rviz
 
