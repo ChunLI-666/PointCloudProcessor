@@ -167,7 +167,7 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
         // view_culling_params.enable_depth_buffer_culling = !params.disable_z_buffer_culling;
         // std::cout << "before view_culling!" << std::endl;
         vlcal::ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
-        pcl::PointCloud<pcl::PointXYZI>::Ptr culledPCD = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());
+        // pcl::PointCloud<pcl::PointXYZI>::Ptr culledPCD = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());
 
         // cloudInCameraPose->clear();
         // pcl::copyPointCloud(*culled_points, *cloudInCameraPose);
@@ -177,11 +177,12 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
         keyframe->culledPCDPath = culledPCDPath;
         pcl::PCDWriter pcd_writer;
 
-        if (pcd_writer.writeASCII(culledPCDPath, *culledPCD) == -1)
+        // if (pcd_writer.writeASCII(culledPCDPath, *culledPCD) == -1)
+        if (pcd_writer.writeASCII(culledPCDPath, *cloudInCameraPose) == -1)
         {
             throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
         }
-        std::cout << "Before NID optimization: view culling pcd saved to: " << culledPCDPath << ", the point size is " << culledPCD->size() << std::endl;
+        // std::cout << "Before NID optimization: view culling pcd saved to: " << culledPCDPath << ", the point size is " << culledPCD->size() << std::endl;
     }
 }
 
@@ -952,7 +953,7 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 1; // meter, 1
+    const double distThreshold = 3; // meter, 1
     const double angThreshold = 25.0; // degree. 25
 
     for (auto &frame : frames)

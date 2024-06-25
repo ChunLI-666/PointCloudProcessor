@@ -50,6 +50,6 @@ Segment mask:
 --images_folder /sandbox/Documents/fast_lio_result/raw_images/ \
 --output_path /sandbox/Documents/fast_lio_result/ \
 --enableMLS 0 \
---enableNIDOptimize 0 \ 
+--enableNIDOptimize 0 \
 --enableInitialGuessManual 1
 
