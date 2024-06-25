@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <Eigen/Core>
 
 struct Pose
 {
@@ -72,11 +73,12 @@ public:
 
   pcl::PointCloud<pcl::PointXYZI>::Ptr visiblePoints;
 
-  Pose initTLidarCamera;
+  Eigen::Isometry3d initTLidarCamera;
   
   void addSegmentImage(const std::string &maskImagePath);
   // addImage(cv::Mat image, double timestamp);
   void addPts(const pcl::PointCloud<pcl::PointXYZI>::Ptr &points);
+  void addManualOptimizedPose(Eigen::Isometry3d T_camera_lidar_optimized);
 };
 
 #endif // FRAMEDATA_HPP

@@ -85,12 +85,12 @@ namespace vlcal
     InitialGuessManual(const std::string &camera_model,
                        const std::vector<double> &K_camera,
                        const std::vector<double> &D_camera,
-                       const std::vector<FrameData::Ptr> &keyframes)
+                       const FrameData::Ptr &keyframe)
         : camera_model(camera_model),
           K_camera(K_camera),
           D_camera(D_camera),
           // pcl_cloud_filtered(point_cloud),
-          keyframes(keyframes),
+          keyframe(keyframe),
           camera_image_rotate_code(-1)
     {
       // std::ifstream ifs(data_path + "/calib.json");
@@ -118,12 +118,11 @@ namespace vlcal
       // {
       //   dataset.emplace_back(std::make_shared<VisualLiDARData>(data_path, bag_name)); // TODO: check reliablily of FrameCPU class
       // }
-      for (const auto &keyframe : keyframes)
-      {
-        dataset.emplace_back(std::make_shared<VisualLiDARData>(*keyframe)); // TODO: check reliablily of FrameCPU class
-      }
-
-
+      // for (const auto &keyframe : keyframes)
+      // {
+      //   dataset.emplace_back(std::make_shared<VisualLiDARData>(*keyframe)); // TODO: check reliablily of FrameCPU class
+      // }
+      dataset.emplace_back(std::make_shared<VisualLiDARData>(*keyframe));
 
       const auto image_size = dataset[0]->image.size();
       std::cout << "image_size:" << image_size.width << "x" << image_size.height << std::endl;
@@ -154,20 +153,20 @@ namespace vlcal
 
     void spin()
     {
-      const std::string camera_model = config["camera"]["camera_model"];
+      // const std::string camera_model = config["camera"]["camera_model"];
       Eigen::Isometry3d init_T_lidar_camera = Eigen::Isometry3d::Identity();
-      if (camera_model != "equirectangular")
-      {
-        init_T_lidar_camera.linear() = (Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitY()) * Eigen::AngleAxisd(-M_PI_2, Eigen::Vector3d::UnitZ())).toRotationMatrix();
-      }
-      else
-      {
-        init_T_lidar_camera.linear() = (Eigen::AngleAxisd(-M_PI_2, Eigen::Vector3d::UnitX())).toRotationMatrix();
-      }
+      // if (camera_model != "equirectangular")
+      // {
+      //   init_T_lidar_camera.linear() = (Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitY()) * Eigen::AngleAxisd(-M_PI_2, Eigen::Vector3d::UnitZ())).toRotationMatrix();
+      // }
+      // else
+      // {
+      //   init_T_lidar_camera.linear() = (Eigen::AngleAxisd(-M_PI_2, Eigen::Vector3d::UnitX())).toRotationMatrix();
+      // }
 
       auto viewer = guik::LightViewer::instance();
       guik::ModelControl T_lidar_camera_gizmo("T_lidar_camera", init_T_lidar_camera.matrix().cast<float>());
-      viewer->  ("gizmo", [&]
+      viewer->register_ui_callback ("gizmo", [&]
                                    {
       auto& io = ImGui::GetIO();
       if (!io.WantCaptureMouse && io.MouseClicked[1]) {
@@ -222,7 +221,8 @@ namespace vlcal
       if (ImGui::Button("Estimate")) {
         const auto T_camera_lidar = picking->estimate();
         if (T_camera_lidar) {
-          T_lidar_camera_gizmo.set_model_matrix(T_camera_lidar->inverse().matrix().cast<float>());
+          // T_lidar_camera_gizmo.set_model_matrix(T_camera_lidar->inverse().matrix().cast<float>());
+          T_lidar_camera_gizmo.set_model_matrix(Eigen::Matrix4f(T_camera_lidar->inverse().matrix().cast<float>()));
         }
       }
 
@@ -235,14 +235,15 @@ namespace vlcal
         const std::vector<double> values = {trans.x(), trans.y(), trans.z(), quat.x(), quat.y(), quat.z(), quat.w()};
         config["results"]["init_T_lidar_camera"] = values;
 
-        std::ofstream ofs(data_path + "/calib.json");
-        if (!ofs) {
-          std::cerr << vlcal::console::bold_red << "error: failed to open " << data_path + "/calib.json"
-                    << " for writing" << vlcal::console::reset << std::endl;
-        } else {
-          ofs << config.dump(2) << std::endl;
-        }
+        // std::ofstream ofs(data_path + "/calib.json");
+        // if (!ofs) {
+        //   std::cerr << vlcal::console::bold_red << "error: failed to open " << data_path + "/calib.json"
+        //             << " for writing" << vlcal::console::reset << std::endl;
+        // } else {
+        //   ofs << config.dump(2) << std::endl;
+        // }
 
+        keyframe->addManualOptimizedPose(T_lidar_camera);
         std::stringstream sst;
         sst << "--- T_lidar_camera ---" << std::endl;
         sst << T_lidar_camera.matrix() << std::endl;
@@ -342,6 +343,16 @@ namespace vlcal
 
     std::unique_ptr<VisualLiDARVisualizer> vis;
     std::unique_ptr<PickingPoseEstimation> picking;
+
+    const std::string camera_model;
+    const std::vector<double> K_camera;
+    const std::vector<double> D_camera;
+    // const pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud_filtered;
+    // camera::GenericCameraBase::ConstPtr proj;
+    // std::vector<VisualLiDARData::ConstPtr> dataset;
+    // const FrameData frame;
+    // const std::vector<FrameData::Ptr> keyframes;
+    const FrameData::Ptr keyframe;
   };
 
 } // namespace vlcal

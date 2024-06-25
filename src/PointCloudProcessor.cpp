@@ -124,11 +124,14 @@ void PointCloudProcessor::applyInitialGuessManual(std::vector<FrameData::Ptr> &k
     // calib.calibrate();
     // T_camera_lidar_optimized = calib.getOptimizedPose();
 
-    // Apply manual initial guess to optimize the camera-lidar pose
-    vlcal::InitialGuessManual init_guess(camera_model, K_camera_coefficients, D_camera, keyframes);
+    for(auto &keyframe : keyframes){
+        // Apply manual initial guess to optimize the camera-lidar pose
+        vlcal::InitialGuessManual init_guess(camera_model, K_camera_coefficients, D_camera, keyframe);
 
-    // Main thread will be blocked until user exit init_guess by closing the GUI window
-    init_guess.spin();
+        // Main thread will be blocked until user exit init_guess by closing the GUI window
+        init_guess.spin();
+
+    }
 
 
 }
@@ -455,6 +458,10 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
             transformation_w2c_optimized = transformation_c2w_optimized.inverse();
         } else if(enableInitialGuessManual){
             // TODO:
+            T_camera_lidar_optimized = (keyframe->initTLidarCamera).inverse();
+            Eigen::Isometry3d t_c2w_optimized = t_c2w * T_camera_lidar_optimized;
+            transformation_c2w_optimized = t_c2w_optimized.cast<float>();
+            transformation_w2c_optimized = transformation_c2w_optimized.inverse();
         }
 
         pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c_optimized);

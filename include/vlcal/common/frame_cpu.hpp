@@ -5,6 +5,8 @@
 #include <Eigen/Core>
 
 #include <vlcal/common/frame.hpp>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
 namespace vlcal {
 
@@ -27,6 +29,14 @@ public:
    */
   template <typename T, int D, typename Alloc>
   FrameCPU(const std::vector<Eigen::Matrix<T, D, 1>, Alloc>& points) : FrameCPU(points.data(), points.size()) {}
+
+  /**
+   * @brief Constructor
+   * @param cloud Point cloud of type pcl::PointCloud<pcl::PointXYZI>
+   */
+  // FrameCPU(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) : FrameCPU(cloud->points) {}
+  FrameCPU(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
+
 
   /// deep copy constructor
   FrameCPU(const Frame& frame);

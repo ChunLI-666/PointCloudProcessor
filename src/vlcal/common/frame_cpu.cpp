@@ -58,6 +58,17 @@ FrameCPU::FrameCPU(const Frame& frame) {
   }
 }
 
+FrameCPU::FrameCPU(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) {
+  std::vector<Eigen::Vector4d> eigen_points;
+  eigen_points.reserve(cloud->points.size());
+
+  for (const auto& point : cloud->points) {
+    eigen_points.emplace_back(point.x, point.y, point.z, 1.0);
+  }
+
+  add_points(eigen_points.data(), eigen_points.size());
+}
+
 FrameCPU::FrameCPU() {}
 
 FrameCPU::~FrameCPU() {}

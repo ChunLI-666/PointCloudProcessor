@@ -4,11 +4,10 @@ project(PointCloudProcessor LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "Release")
 # set(CMAKE_BUILD_TYPE Debug)
-
 set(CMAKE_CXX_FLAGS "-std=c++17")
-
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 set(Open3D_DIR ${HOME}/open3d_install/lib/cmake/Open3D)
-# message(STATUS "Open3D_DIR: ${Open3D_DIR}")
+message(STATUS "Open3D_DIR: ${Open3D_DIR}")
 # set(Qhull_DIR "/usr/local/lib/cmake/Qhull")
 set(QHULL_LIBRARY /usr/local/lib/libqhull_r.so)
 find_library(QHULL_LIBRARIES NAMES qhull_r PATHS /usr/local/lib)
@@ -17,10 +16,11 @@ find_package(PCL 1.8 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Open3D REQUIRED)
 find_package(Boost 1.65 REQUIRED COMPONENTS filesystem program_options)
-
-# For VLCAL
 find_package(Ceres REQUIRED)
 find_package(OpenMP)
+find_package(OpenGL REQUIRED)
+find_package(Iridescence REQUIRED)
+
 if (OPENMP_FOUND)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -54,17 +54,26 @@ endif()
 add_library(direct_visual_lidar_calibration SHARED
   src/camera/create_camera.cpp
   src/vlcal/common/estimate_fov.cpp
+  src/vlcal/common/estimate_pose.cpp
+  src/vlcal/common/frame_cpu.cpp
+  src/vlcal/common/frame.cpp
+  src/vlcal/common/points_color_updater.cpp
+  src/vlcal/common/visual_lidar_data.cpp
+  src/vlcal/common/visual_lidar_visualizer.cpp
   src/vlcal/calib/view_culling.cpp
   src/vlcal/calib/visual_camera_calibration.cpp
+  src/initial_guess_manual.cpp
 )
 target_include_directories(direct_visual_lidar_calibration PUBLIC
   include
   thirdparty/Sophus
+  thirdparty/json/include
   ${Boost_INCLUDE_DIRS}
   ${CERES_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${QHULL_INCLUDE_DIRS}
+  ${Iridescence_INCLUDE_DIRS}
 )
 target_link_libraries(direct_visual_lidar_calibration
   fmt
@@ -73,7 +82,7 @@ target_link_libraries(direct_visual_lidar_calibration
   ${CERES_LIBRARIES}
   # ${GTSAM_LIBRARIES}
   ${OpenCV_LIBRARIES}
-  # ${Iridescence_LIBRARIES}
+  ${Iridescence_LIBRARIES}
   ${QHULL_LIBRARIES}
 )
 

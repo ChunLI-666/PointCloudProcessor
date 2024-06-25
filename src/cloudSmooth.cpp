@@ -107,7 +107,7 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
     pcl::copyPointCloud(*cloud, *cloudWithNormal);
     pcl::StatisticalOutlierRemoval<pcl::PointNormal> sorOriginCloud;
     // sorOriginCloud.setInputCloud(*cloud);
-    sorOriginCloud.setInputCloud(boost::make_shared<pcl::PointCloud<pcl::PointNormal>>(*cloudWithNormal));
+    sorOriginCloud.setInputCloud(std::make_shared<pcl::PointCloud<pcl::PointNormal>>(*cloudWithNormal));
     sorOriginCloud.setMeanK(sor_kmean_neighbour_);
     sorOriginCloud.setStddevMulThresh(sor_std_dev_);
     sorOriginCloud.filter(*cloudWithNormal);
