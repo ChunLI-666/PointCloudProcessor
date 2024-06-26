@@ -460,7 +460,6 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
             transformation_c2w_optimized = t_c2w_optimized.cast<float>();
             transformation_w2c_optimized = transformation_c2w_optimized.inverse();
         } else if(enableInitialGuessManual){
-            // TODO:
             // T_camera_lidar_optimized = (keyframe->initTLidarCamera).inverse();
             T_camera_lidar_optimized = keyframe->initTLidarCamera;
             std::cout << "Manually optimized T_camera_lidar_optimized is: " << T_camera_lidar_optimized.matrix() << std::endl;
@@ -595,7 +594,7 @@ void PointCloudProcessor::smoothColorsWithLocalRegion(RGBCloud &rgbCloud, float 
         std::vector<int> pointIdxRadiusSearch;
         std::vector<float> pointRadiusSquaredDistance;
 
-        // 进行半径搜索，找到当前点的邻域点
+        // 进行radius搜索，找到当前点的邻域点
         if (octree.radiusSearch(point, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0) {
             // 初始化颜色累加值和总分数
             float totalScore = 0;
