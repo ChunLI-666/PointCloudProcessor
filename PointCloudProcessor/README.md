@@ -17,7 +17,7 @@ This repository contains a comprehensive point cloud processing and colorization
 
 ## Installation (3 ways)
 
-### Build from source
+### 1. Build from source
 Ensure that the following dependencies are installed:
 - PCL (Point Cloud Library)
 - Eigen
@@ -39,9 +39,62 @@ mkdir build && cd build && \
 cmake .. && make -j$(nproc) 
 ```
 
-### Install with ros1 docker
+### 2. Install with ros1 docker
 Follow instructions from following file to install with docker:
 - [docker.md](doc/docker.md)
 
 
-### Build from dockerfile
+### 3. Build from dockerfile
+#### Build image:
+```bash
+docker build -t pcd-process-image --network=host .  
+```
+
+#### Run the Docker container:
+```bash
+docker run -it \
+    --workdir=/sandbox/ \
+    -v $HOME:/sandbox/ \
+    -e HOME=/root/ \
+    -e "QT_X11_NO_MITSHM=1" \
+    -e DISPLAY=unix$DISPLAY \
+    --env="DISPLAY" \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    --name=pcd_process \
+    --privileged \
+    --network host \
+    -v /etc/timezone:/etc/timezone:ro \
+    -d custom_ros_image
+```
+
+#### Attach to the Running Container:
+```bash
+xhost +local:docker
+docker attach pcd_process
+```
+
+#### Inside the Docker Container:
+1. Test X11 forwarding:
+```bash
+roscore
+rviz
+```
+
+2. Set up proxy if needed:
+```bash
+export http_proxy=http://localhost:3128
+export https_proxy=http://localhost:3128
+export ftp_proxy=http://localhost:3128
+```
+
+3. Run the point cloud processor (assume the organized input dataset is ready):
+```bash
+./PointCloudProcessor \
+    --point_cloud_path /path-to-dataset/scans-clean-mls.pcd \
+    --odometry_path /path-to-dataset/vo_interpolated_odom.txt \
+    --images_folder /path-to-dataset/image_balanced_color_auto/ \
+    --output_path /path-to-dataset/test03/ \
+    --enableMLS 0 \
+    --enableNIDOptimize 0 \
+    --enableInitialGuessManual 1
+```
