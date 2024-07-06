@@ -41,7 +41,7 @@ cmake .. && make -j$(nproc)
 
 ### 2. Install with ros1 docker
 Follow instructions from following file to install with docker:
-- [docker.md](doc/docker.md)
+- [docker.md](PointCloudProcessor/doc/docker.md)
 
 
 ### 3. Build from dockerfile
