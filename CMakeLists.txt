@@ -13,6 +13,7 @@ set(Open3D_DIR ${HOME}/open3d_install/lib/cmake/Open3D)
 set(QHULL_LIBRARY /usr/local/lib/libqhull_r.so)
 find_library(QHULL_LIBRARIES NAMES qhull_r PATHS /usr/local/lib)
 
+
 find_package(PCL 1.8 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Open3D REQUIRED)
