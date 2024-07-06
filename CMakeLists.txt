@@ -5,8 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++17")
 
-set(Open3D_DIR ${HOME}/open3d_install/lib/cmake/Open3D)
-# message(STATUS "Open3D_DIR: ${Open3D_DIR}")
+# set(Open3D_DIR ${HOME}/open3d_install/lib/cmake/Open3D)
+set(Open3D_DIR /root/open3d_install/lib/cmake/Open3D)
+message(STATUS "Open3D_DIR: ${Open3D_DIR}")
 
 find_package(PCL 1.8 REQUIRED)
 find_package(OpenCV REQUIRED)
