@@ -120,21 +120,13 @@ void PointCloudProcessor::applyNIDBasedPoseOptimization(std::vector<FrameData::P
 
 void PointCloudProcessor::applyInitialGuessManual(std::vector<FrameData::Ptr> &keyframes)
 {
-
-    // // Apply Multi-cost NID-based pose optimization
-    // vlcal::VisualLiDARCalibration calib(camera_model, K_camera_coefficients, D_camera, keyframes);
-    // calib.calibrate();
-    // T_camera_lidar_optimized = calib.getOptimizedPose();
-
     for(auto &keyframe : keyframes){
         // Apply manual initial guess to optimize the camera-lidar pose
         vlcal::InitialGuessManual init_guess(camera_model, K_camera_coefficients, D_camera, keyframe);
 
         // Main thread will be blocked until user exit init_guess by closing the GUI window
         init_guess.spin();
-
     }
-
 
 }
 
@@ -439,7 +431,7 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
 
     pcl::KdTreeFLANN<pcl::PointXYZI> kdtree;
     kdtree.setInputCloud(cloud);
-    const float epsilon = 1e-5; // 定义容差 
+    const float epsilon = 1e-5; // define epsilon for point searching
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZI>());
 
     for (size_t keyframeIndex = 0; keyframeIndex < keyframes.size(); ++keyframeIndex) {
@@ -492,24 +484,6 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
             searchPoint.x = ptColorInWrd.x;
             searchPoint.y = ptColorInWrd.y;
             searchPoint.z = ptColorInWrd.z;
-        //     // 使用容差比较点的坐标
-        //     auto it = std::find_if(cloud->points.begin(), cloud->points.end(), 
-        //                         [&ptColorInWrd, epsilon](const pcl::PointXYZI& p){
-        //                             return (std::abs(p.x - ptColorInWrd.x) < epsilon) &&
-        //                                    (std::abs(p.y - ptColorInWrd.y) < epsilon) &&
-        //                                    (std::abs(p.z - ptColorInWrd.z) < epsilon);
-        //                         });
-
-        //     if (it != cloud->points.end()) {
-        //         int pointIndex = std::distance(cloud->points.begin(), it);
-        //         float orientationScore = computeOrientationScore(cloudInCameraPose->points[i], keyframe->pose);
-        //         float distanceScore = computeDistanceScore(cloudInCameraPose->points[i]);
-        //         float finalScore = orientationScore * distanceScore;
-
-        //         RGBScore rgbScore(coloredCloudInWorld->points[i].r, coloredCloudInWorld->points[i].g, coloredCloudInWorld->points[i].b, orientationScore, distanceScore, finalScore);
-        //         rgbCloud.addPointData(pointIndex, rgbScore, keyframeIndex);
-        //     }
-        // }
 
             // 使用 k-d 树进行近邻搜索
             std::vector<int> pointIdxRadiusSearch;
@@ -572,8 +546,7 @@ void PointCloudProcessor::smoothColors(RGBCloud &rgbCloud) {
     }
 }
 
-#include <pcl/octree/octree_search.h>
-
+// TODO: need optimizting memory usages
 void PointCloudProcessor::smoothColorsWithLocalRegion(RGBCloud &rgbCloud, float radius) {
     // 创建一个新的点云，用于存储平滑后的颜色
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr smoothedColors(new pcl::PointCloud<pcl::PointXYZRGB>());

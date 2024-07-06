@@ -23,6 +23,7 @@ docker run -it \
     -v /etc/timezone:/etc/timezone:ro \
     -d osrf/ros:noetic-desktop-full 
 
+# if GPU resource is avaiable, enable gpu support can accelerate the manual initial-guess
 docker run -it \
     --gpus all \
     --workdir=/sandbox/ \
@@ -103,3 +104,13 @@ cd /root \
   && make -j$(nproc) \
   && make install \
   && rm -rf /root/iridescence
+```
+
+### 2.2 Build and install
+```bash
+cd /sandbox && \
+git clone --recursice https://github.com/ChunLI-666PointCloudProcessor.git &&\
+cd PointCloudProcessor && \
+mkdir build && cd build && \
+cmake .. && make -j$(nproc)
+``` 
