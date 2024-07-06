@@ -10,14 +10,16 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/surface/mls.h>
 
-enum UpsamplingMethodType {
+enum UpsamplingMethodType
+{
     METHOD_SAMPLE_LOCAL_PLANE,
     METHOD_RANDOM_UNIFORM_DENSITY,
     METHOD_VOXEL_GRID_DILATION,
     None
 };
 
-struct MLSParameters {
+struct MLSParameters
+{
     bool compute_normals;
     int polynomial_order;
     double search_radius;
@@ -33,21 +35,21 @@ struct MLSParameters {
     UpsamplingMethodType upsampling_enum;
 };
 
-class CloudSmooth {
+class CloudSmooth
+{
 public:
     // pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
     // pcl::PointCloud<pcl::PointXYZI>::Ptr cloudAftSmooth;
     // Constructor that accepts the input file path
-    CloudSmooth(const std::string& input_file_path);
+    CloudSmooth(const std::string &input_file_path);
 
     // Method to initialize the MLS parameters
-    void initialize(const MLSParameters& params);
+    void initialize(const MLSParameters &params);
 
     // Method to process the input PCD file
     void process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSmooth);
 
 private:
-    
     std::string input_file_path_;
     bool compute_normals_;
     int polynomial_order_;
