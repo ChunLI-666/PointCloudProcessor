@@ -104,6 +104,7 @@ def process_and_save_images(input_folder, output_folder, clip_limit, tile_grid_s
                 
                 # Apply AGC
                 # image = agc_mean_mix(image)
+
                 
                 output_path = os.path.join(output_folder, img_name)
                 cv2.imwrite(output_path, image)
@@ -127,3 +128,4 @@ def main(input_folder):
 # input_folder = '/sandbox/Documents/zhongnan/fastlio-color/20240516/_2024-05-16-17-22-50-reconstruction_new/fast_lio_result/raw_images'
 input_folder = '/sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test03/raw_images'
 main(input_folder)
+
