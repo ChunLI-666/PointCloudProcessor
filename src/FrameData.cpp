@@ -28,6 +28,12 @@ void FrameData::addPts(const pcl::PointCloud<pcl::PointXYZI>::Ptr &points){
     this->ptsInCamFrame = points;
 }
 
+void FrameData::addManualOptimizedPose(Eigen::Isometry3d T_camera_lidar_optimized){
+    std::cout << "Adding manual optimized pose into keyframe!" << std::endl;
+    this->initTLidarCamera = T_camera_lidar_optimized;
+}
+
+
 FrameData::~FrameData(){
 
 }

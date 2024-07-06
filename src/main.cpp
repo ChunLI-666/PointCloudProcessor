@@ -16,7 +16,8 @@ int main(int argc, char** argv) {
             ("mask_image_folder,m", po::value<std::string>()->default_value(""), "Path to directory for segmented images")
             ("output_path,t", po::value<std::string>()->default_value("."), "Path to save processed output")
             ("enableMLS,e", po::value<bool>()->default_value(false), "Enable MLS smoothing")
-            ("enableNIDOptimize,e", po::value<bool>()->default_value(false), "Enable NID-based camera pose optimization");
+            ("enableNIDOptimize,e", po::value<bool>()->default_value(false), "Enable NID-based camera pose optimization")
+            ("enableInitialGuessManual,e", po::value<bool>()->default_value(false), "Enable manual pickup point based camera pose optimization");
 
         // Store and parse command line arguments
         po::variables_map vm;
@@ -41,6 +42,7 @@ int main(int argc, char** argv) {
             std::string outputPath = vm["output_path"].as<std::string>();
             bool enableMLS = vm["enableMLS"].as<bool>();
             bool enableNIDOptimize = vm["enableNIDOptimize"].as<bool>();
+            bool enableInitialGuessManual = vm["enableInitialGuessManual"].as<bool>();
 
             PointCloudProcessor processor(
                 pointCloudPath, 
@@ -49,7 +51,8 @@ int main(int argc, char** argv) {
                 maskImageFolder, 
                 outputPath, 
                 enableMLS,
-                enableNIDOptimize);
+                enableNIDOptimize,
+                enableInitialGuessManual);
 
             processor.process();
             std::cout << "Processing completed successfully." << std::endl;
