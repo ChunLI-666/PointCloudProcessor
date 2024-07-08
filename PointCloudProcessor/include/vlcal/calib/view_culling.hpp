@@ -11,7 +11,7 @@ struct ViewCullingParams {
 public:
   ViewCullingParams() {
     enable_depth_buffer_culling = true;
-    hidden_points_removal_max_z = 1000.0;
+    hidden_points_removal_max_z = 2000.0;
   }
 
   bool enable_depth_buffer_culling;       ///< If ture, perform depth-buffer-based hidden points removal

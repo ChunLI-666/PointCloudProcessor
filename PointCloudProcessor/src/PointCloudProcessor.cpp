@@ -631,7 +631,7 @@ void PointCloudProcessor::generateColorMap(const FrameData &frame,
     // 调整饱和度和亮度
     // TODO: hardcode
     float saturation_scale = 1.0; // 饱和度增加 0%
-    float brightness_scale = 1.2; // 亮度增加 20%
+    float brightness_scale = 1.0; // 亮度增加 20%
     for (int y = 0; y < hsv.rows; y++)
     {
         for (int x = 0; x < hsv.cols; x++)
@@ -862,6 +862,12 @@ void PointCloudProcessor::loadImagesAndOdometry()
         // std::string imagePath = findImagePathForTimestamp(timestamp);
         std::string imagePath = imagesFolder + std::to_string(timestamp) + ".jpg";
 
+        // Check if imagePath exists
+        if (!std::filesystem::exists(imagePath))
+        {
+            continue; // Skip this image if it does not exist
+        }
+
         if (enableMaskSegmentation)
         {
             std::string maskImagePath = maskImageFolder + std::to_string(timestamp) + ".png";
@@ -926,7 +932,7 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 1.2; // meter, 1
+    const double distThreshold = 0.8; // meter, 1
     const double angThreshold = 25.0; // degree. 25
 
     for (auto &frame : frames)
