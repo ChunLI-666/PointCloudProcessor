@@ -2,3 +2,4 @@ build/*
 # .vscode/*
 .github/*
 opengl_test/*
+*/__pycache__
