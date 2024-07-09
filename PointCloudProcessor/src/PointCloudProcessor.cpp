@@ -389,7 +389,7 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
             generateSegmentMap(*keyframe, scanInBodyWithRGB, scanInBodyWithRGBandMask);
 
             // save the segmented point cloud
-            std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_colored" + ".pcd");
+            std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_rgb-mask" + ".pcd");
             pcl::PCDWriter pcd_writer;
 
             if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
@@ -407,7 +407,7 @@ void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes
             // 4. Save the colorized pointcloud to seperate PCD file
             // visualizePointCloud(pcl_cloud_filtered);
 
-            std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_colored" + ".pcd");
+            std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_rgb" + ".pcd");
             pcl::PCDWriter pcd_writer;
 
             if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
@@ -434,7 +434,14 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
     const float epsilon = 1e-5; // define epsilon for point searching
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZI>());
 
-    for (size_t keyframeIndex = 0; keyframeIndex < keyframes.size(); ++keyframeIndex) {
+    pcl::PointCloud<PointXYZRGBMask>::Ptr scanInBodyWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
+    pcl::PointCloud<PointXYZRGBMask>::Ptr scanInWorldWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
+
+    for (size_t keyframeIndex = 0; keyframeIndex < keyframes.size(); ++keyframeIndex) 
+    {
+        scanInBodyWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
+        scanInWorldWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
+
         auto &keyframe = keyframes[keyframeIndex];
 
         Pose voPose = getPoseFromOdom(keyframe->pose);
@@ -472,12 +479,32 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr coloredCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
         generateColorMap(*keyframe, cloudInCameraPoseCulled, coloredCloud);
 
+        if (enableMaskSegmentation)
+        {
+            // project 3d points to 2d segmentation mask images
+            generateSegmentMap(*keyframe, coloredCloud, scanInBodyWithRGBandMask);
+
+            // save the segmented point cloud
+            std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_rgb-mask" + ".pcd");
+            pcl::PCDWriter pcd_writer;
+
+            if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
+            {
+                throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+            }
+            std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << scanInBodyWithRGBandMask->size() << std::endl;
+
+            // Transforn colored scan into world frame, and combine them into one big colored cloud
+            pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w_optimized);
+            *cloudInWorldWithRGBandMask += *scanInWorldWithRGBandMask;
+        }
+
+        //// Smooth color among multi-views
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr coloredCloudInWorld(new pcl::PointCloud<pcl::PointXYZRGB>());
         pcl::transformPointCloud(*coloredCloud, *coloredCloudInWorld, transformation_c2w_optimized.cast<float>());
 
         for (size_t i = 0; i < coloredCloudInWorld->points.size(); ++i) {
             auto& ptColorInWrd = coloredCloudInWorld->points[i];
-            // std::cout<< "this is 2" << std::endl;
 
             // 将 ptColorInWrd 转换为 pcl::PointXYZI
             pcl::PointXYZI searchPoint;
@@ -761,16 +788,6 @@ void PointCloudProcessor::generateSegmentMapWithColor(pcl::PointCloud<PointXYZRG
         pc_color->push_back(point_rgb);
     }
 }
-
-// void PointCloudProcessor::colorizePoints()
-// {
-//     // Colorize points based on the projected image coordinates!maskImageFolder.empty()
-// }
-
-// void PointCloudProcessor::smoothColors()
-// {
-//     // Smooth the colors of the point cloud
-// }
 
 void PointCloudProcessor::saveColorizedPointCloud()
 {
