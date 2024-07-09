@@ -72,7 +72,10 @@
         "valarray": "cpp",
         "forward_list": "cpp",
         "hash_set": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "any": "cpp",
+        "filesystem": "cpp",
+        "regex": "cpp"
     },
     "cmake.configureSettings": {
         "PYTHON_EXECUTABLE": "/usr/bin/python3"
