@@ -2,9 +2,13 @@ import open3d as o3d
 import cv2 as cv2
 import argparse 
 import os 
-import loguru as logger
+# import loguru as logger
+import logging
 import numpy as np
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class CrackDataFrame():
     """
@@ -27,7 +31,7 @@ class CrackDataFrame():
             pcd_path (str): The path to the point cloud data file.
         """
         self.frame_timestamp = timestamp
-        self.pcd = o3d.read_point_cloud(pcd_path)
+        self.pcd = o3d.io.read_point_cloud(pcd_path)
         self.crack_mask = None
         self.norm_mask = None
         self.distance_mask = None
@@ -143,7 +147,7 @@ class Crack():
             if os.path.exists(mask_path):
                 frame.add_crack_mask(mask_path)
             else:
-                logger.error(f"Mask image not found: {mask_path}")
+                logger.info(f"Mask image not found: {mask_path}")
                 
     def generate_norm_masks(self):
         """
@@ -219,8 +223,8 @@ class Crack():
             cv2.imwrite(distance_mask_path, frame.distance_mask)
 
 
-if __name__ == __main__():
-    data_root_dir = "/home/charles/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic"
+if __name__ == '__main__':
+    data_root_dir = "/sandbox/Documents/zhongnan/fastlio-color/test-offline-color/test-new-extrinsic"
     intrinsic_matrix = np.array(
         [[4818.200388954926, 0.0, 2032.4178620390019], 
          [0.0, 4819.10345841615, 1535.1895959282901], 
