@@ -18,6 +18,7 @@
 #include <pcl/search/kdtree.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/surface/mls.h>
+#include <omp.h>
 
 #include "cloudSmooth.hpp"
 
@@ -32,7 +33,7 @@ CloudSmooth::CloudSmooth(const std::string &input_file_path)
       slp_upsampling_stepsize_(0.01),
       rud_point_density_(50),
       vgd_voxel_size_(0.001),
-      vgd_iterations_(4),
+      vgd_iterations_(5),
       sor_kmean_neighbour_(6),
       sor_std_dev_(0.3),
       upsampling_enum_(METHOD_VOXEL_GRID_DILATION) {}
@@ -115,11 +116,12 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
 
     pcl::copyPointCloud(*cloudWithNormal, *cloudAftSor);
 
+#ifdef _OPENMP
     // Perform MLS smoothing
     std::cout << "====== MLS: Perform MLS smoothing " << std::endl;
     std::cout << "\ncloudAftSor point count: " << cloudAftSor->size() << std::endl;
-    mls.setComputeNormals(compute_normals_);
     mls.setInputCloud(cloudAftSor);
+    mls.setComputeNormals(compute_normals_);
     mls.setPolynomialOrder(polynomial_order_);
     mls.setSearchMethod(tree);
     mls.setSearchRadius(search_radius_);
@@ -150,6 +152,7 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
 
     mls.process(mls_points);
     std::cout << "\nmls_points point count: " << mls_points.size() << std::endl;
+#endif
 
     // Apply statistical outlier removal
     std::cout << "====== MLS: Apply 2nd statistical outlier removal after MLS " << std::endl;
@@ -171,8 +174,8 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
               << std::endl;
 
     // Save the output file
-    // std::string output_file = boost::filesystem::path(input_file_path_).stem().string() + "_smoothed.pcd";
-    // pcl::io::savePCDFile(output_file, mls_points);
+    std::string output_file = boost::filesystem::path(input_file_path_).stem().string() + "_mls.pcd";
+    pcl::io::savePCDFile(output_file, mls_points);
     // *cloudAftSmooth = mls_points;
     pcl::copyPointCloud(mls_points, *cloudAftSmooth);
     // return cloudAftSmooth;

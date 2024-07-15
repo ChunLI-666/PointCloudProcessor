@@ -66,20 +66,20 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.compute_normals = true;
     mlsParams.polynomial_order = 2;
     // mlsParams.search_radius = 0.03;
-    mlsParams.search_radius = 0.02;
+    mlsParams.search_radius = 0.03;
     mlsParams.sqr_gauss_param = 0.0009;
-    mlsParams.num_threads = 24;
+    mlsParams.num_threads = 32;
     mlsParams.slp_upsampling_radius = 0.05;
     mlsParams.slp_upsampling_stepsize = 0.01;
     mlsParams.rud_point_density = 50;
     // mlsParams.vgd_voxel_size = 0.001; // 0.001
-    mlsParams.vgd_voxel_size = 0.005; // 0.001
+    mlsParams.vgd_voxel_size = 0.002; // 0.001
     mlsParams.vgd_iterations = 3;
     // mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
     mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
 
     mlsParams.sor_kmean_neighbour = 60;
-    mlsParams.sor_std_dev = 0.5;
+    mlsParams.sor_std_dev = 0.7;
 
     // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false
     enableMaskSegmentation = !maskImageFolder.empty();
