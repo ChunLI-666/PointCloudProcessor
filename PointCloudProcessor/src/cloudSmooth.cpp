@@ -18,6 +18,7 @@
 #include <pcl/search/kdtree.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/surface/mls.h>
+#include <omp.h>
 
 #include "cloudSmooth.hpp"
 
@@ -32,7 +33,7 @@ CloudSmooth::CloudSmooth(const std::string &input_file_path)
       slp_upsampling_stepsize_(0.01),
       rud_point_density_(50),
       vgd_voxel_size_(0.001),
-      vgd_iterations_(4),
+      vgd_iterations_(5),
       sor_kmean_neighbour_(6),
       sor_std_dev_(0.3),
       upsampling_enum_(METHOD_VOXEL_GRID_DILATION) {}
@@ -95,6 +96,7 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
     }
     std::cout << "Success read file " << input_file_path_ << std::endl;
 
+#ifdef _OPENMP
     // Process the PCD file
     auto start = std::chrono::high_resolution_clock::now();
     size_t initial_point_count = cloud->points.size();
@@ -118,8 +120,8 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
     // Perform MLS smoothing
     std::cout << "====== MLS: Perform MLS smoothing " << std::endl;
     std::cout << "\ncloudAftSor point count: " << cloudAftSor->size() << std::endl;
-    mls.setComputeNormals(compute_normals_);
     mls.setInputCloud(cloudAftSor);
+    mls.setComputeNormals(compute_normals_);
     mls.setPolynomialOrder(polynomial_order_);
     mls.setSearchMethod(tree);
     mls.setSearchRadius(search_radius_);
@@ -161,6 +163,8 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
+#endif
+
     // Log the processing information
     std::cout << "\n==============================\n"
               << " MLS Summary: Processed file: " << input_file_path_
@@ -171,8 +175,8 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
               << std::endl;
 
     // Save the output file
-    // std::string output_file = boost::filesystem::path(input_file_path_).stem().string() + "_smoothed.pcd";
-    // pcl::io::savePCDFile(output_file, mls_points);
+    std::string output_file = boost::filesystem::path(input_file_path_).stem().string() + "_mls.pcd";
+    pcl::io::savePCDFile(output_file, mls_points);
     // *cloudAftSmooth = mls_points;
     pcl::copyPointCloud(mls_points, *cloudAftSmooth);
     // return cloudAftSmooth;

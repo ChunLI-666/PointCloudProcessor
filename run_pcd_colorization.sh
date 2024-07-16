@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define variables
-root_dir="/sandbox/Documents/zhongnan/fastlio-color/20240704/_2024-07-03-10-21-10-reconstruction/fast_lio_result"
-enableMLS=false
+root_dir="/mnt/data1/rosbagdata/20240715/nomask2/_2024-07-15-16-30-12_reconstruct"
+enableMLS=true
 enableNIDOptimize=false
 enableInitialGuessManual=true
 
@@ -18,7 +18,7 @@ python3 PointCloudProcessor/scripts/make_vo_odom_for_fastlio.py \
 
 # Run PointCloudProcessor with the specified parameters
 PointCloudProcessor/build/PointCloudProcessor \
-    --point_cloud_path "$root_dir/scans-crop-mls.pcd" \
+    --point_cloud_path "$root_dir/scans.pcd" \
     --odometry_path "$root_dir/vo_interpolated_odom.txt" \
     --images_folder "$root_dir/raw_images/" \
     --output_path "$root_dir/" \

@@ -3,6 +3,7 @@
 #include "RGBCloud.hpp"
 #include <pcl/io/pcd_io.h>          // For loading point cloud
 #include <pcl/filters/voxel_grid.h> // Example for downsampling
+#include <pcl/filters/crop_box.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/common/transforms.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -66,20 +67,20 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.compute_normals = true;
     mlsParams.polynomial_order = 2;
     // mlsParams.search_radius = 0.03;
-    mlsParams.search_radius = 0.02;
+    mlsParams.search_radius = 0.03;
     mlsParams.sqr_gauss_param = 0.0009;
-    mlsParams.num_threads = 24;
+    mlsParams.num_threads = 30;
     mlsParams.slp_upsampling_radius = 0.05;
     mlsParams.slp_upsampling_stepsize = 0.01;
     mlsParams.rud_point_density = 50;
     // mlsParams.vgd_voxel_size = 0.001; // 0.001
-    mlsParams.vgd_voxel_size = 0.005; // 0.001
+    mlsParams.vgd_voxel_size = 0.002; // 0.001
     mlsParams.vgd_iterations = 3;
-    // mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
     mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
+    // mlsParams.upsampling_enum = None;
 
     mlsParams.sor_kmean_neighbour = 60;
-    mlsParams.sor_std_dev = 0.5;
+    mlsParams.sor_std_dev = 0.6;
 
     // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false
     enableMaskSegmentation = !maskImageFolder.empty();
@@ -87,10 +88,52 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
 
 void PointCloudProcessor::loadPointCloud()
 {
+    // Create a bounding box that encompasses the odometry trajectory
+    Eigen::Vector3d minPt(DBL_MAX, DBL_MAX, DBL_MAX);
+    Eigen::Vector3d maxPt(DBL_MIN, DBL_MIN, DBL_MIN);
+    for (const auto &frame : frames)
+    {
+        const Pose &pose = frame->pose;
+        minPt = minPt.cwiseMin(Eigen::Vector3d(pose.x, pose.y, pose.z));
+        maxPt = maxPt.cwiseMax(Eigen::Vector3d(pose.x, pose.y, pose.z));
+    }
+
+    // Inflate the bounding box a little bit if needed
+    double padding = 0.5; // Add some padding to the bounding box
+    minPt.array() -= padding;
+    maxPt.array() += padding;
+
+    // Load the point cloud
+    pcl::PointCloud<pcl::PointXYZI>::Ptr originalCloud(new pcl::PointCloud<pcl::PointXYZI>());
+    if (pcl::io::loadPCDFile<pcl::PointXYZI>(pointCloudPath, *originalCloud) == -1)
+    {
+        throw std::runtime_error("Couldn't read point cloud file.");
+    }
+
+    std::cout << "Start crop pcd..." << std::endl;
+
+    // Crop the point cloud based on the bounding box
+    pcl::CropBox<pcl::PointXYZI> boxFilter;
+    boxFilter.setMin(Eigen::Vector4f(minPt.x(), minPt.y(), minPt.z(), 1.0));
+    boxFilter.setMax(Eigen::Vector4f(maxPt.x(), maxPt.y(), maxPt.z(), 1.0));
+    boxFilter.setInputCloud(originalCloud);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr croppedCloud(new pcl::PointCloud<pcl::PointXYZI>());
+    boxFilter.filter(*croppedCloud);
+
+    std::cout << "Loaded point cloud with " << originalCloud->points.size() << " points." << std::endl;
+    std::cout << "Cropped point cloud with " << croppedCloud->points.size() << " points." << std::endl;
+
+   // Generate the new file path for the cropped point cloud
+    std::string croppedPointCloudPath = std::string(outputPath +  "scans-crop.pcd");;
+
+    // Save the cropped point cloud
+    pcl::io::savePCDFileASCII(croppedPointCloudPath, *croppedCloud);
+    std::cout << "Cropped point cloud saved to: " << croppedPointCloudPath << std::endl;
+
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloudWithIntensity(new pcl::PointCloud<pcl::PointXYZINormal>());
     if (enableMLS)
     {
-        CloudSmooth cloudSmooth(pointCloudPath);
+        CloudSmooth cloudSmooth(croppedPointCloudPath);
         cloudSmooth.initialize(mlsParams);
         cloudSmooth.process(cloudWithIntensity);
         pcl::copyPointCloud(*cloudWithIntensity, *cloud);
@@ -934,9 +977,9 @@ void PointCloudProcessor::loadImagesAndOdometry()
 
 void PointCloudProcessor::process()
 {
-    loadPointCloud();
-
     loadImagesAndOdometry();
+
+    loadPointCloud();
 
     generateResultStorageFolder();
 
