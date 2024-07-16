@@ -4,7 +4,7 @@
 root_dir="/mnt/data1/rosbagdata/20240715/nomask2/_2024-07-15-16-30-12_reconstruct"
 enableMLS=true
 enableNIDOptimize=false
-enableInitialGuessManual=true
+enableInitialGuessManual=false
 
 # Check if Python script exists
 if [ ! -f PointCloudProcessor/scripts/make_vo_odom_for_fastlio.py ]; then

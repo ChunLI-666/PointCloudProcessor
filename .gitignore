@@ -1,2 +1,3 @@
 .vscode/*
-PointCloudProcessor/thirdparty/*
+PointCloudProcessor/thirdparty/json
+PointCloudProcessor/thirdparty/Sophus
