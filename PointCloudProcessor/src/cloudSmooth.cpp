@@ -117,6 +117,7 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
 
     pcl::copyPointCloud(*cloudWithNormal, *cloudAftSor);
 
+#ifdef _OPENMP
     // Perform MLS smoothing
     std::cout << "====== MLS: Perform MLS smoothing " << std::endl;
     std::cout << "\ncloudAftSor point count: " << cloudAftSor->size() << std::endl;
@@ -152,6 +153,7 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
 
     mls.process(mls_points);
     std::cout << "\nmls_points point count: " << mls_points.size() << std::endl;
+#endif
 
     // Apply statistical outlier removal
     std::cout << "====== MLS: Apply 2nd statistical outlier removal after MLS " << std::endl;

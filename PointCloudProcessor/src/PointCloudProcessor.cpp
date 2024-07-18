@@ -70,6 +70,7 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.search_radius = 0.03;
     mlsParams.sqr_gauss_param = 0.0009;
     mlsParams.num_threads = 30;
+
     mlsParams.slp_upsampling_radius = 0.05;
     mlsParams.slp_upsampling_stepsize = 0.01;
     mlsParams.rud_point_density = 50;
@@ -80,7 +81,8 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     // mlsParams.upsampling_enum = None;
 
     mlsParams.sor_kmean_neighbour = 60;
-    mlsParams.sor_std_dev = 0.6;
+
+    mlsParams.sor_std_dev = 0.7;
 
     // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false
     enableMaskSegmentation = !maskImageFolder.empty();
@@ -99,7 +101,8 @@ void PointCloudProcessor::loadPointCloud()
     }
 
     // Inflate the bounding box a little bit if needed
-    double padding = 0.5; // Add some padding to the bounding box
+
+    double padding = 2.0; // Add some padding to the bounding box
     minPt.array() -= padding;
     maxPt.array() += padding;
 
@@ -125,6 +128,7 @@ void PointCloudProcessor::loadPointCloud()
 
    // Generate the new file path for the cropped point cloud
     std::string croppedPointCloudPath = std::string(outputPath +  "scans-crop.pcd");;
+
 
     // Save the cropped point cloud
     pcl::io::savePCDFileASCII(croppedPointCloudPath, *croppedCloud);
@@ -1024,7 +1028,7 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 0.8; // meter, 1
+    const double distThreshold = 2; // meter, 1
     const double angThreshold = 25.0; // degree. 25
 
     for (auto &frame : frames)
