@@ -98,3 +98,8 @@ export ftp_proxy=http://localhost:3128
     --enableNIDOptimize 0 \
     --enableInitialGuessManual 1
 ```
+
+1 PIXEL / - n DISTANCE + n normal
+maintain 3d width of crack
+
+colorization image should look good

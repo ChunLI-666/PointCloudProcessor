@@ -17,7 +17,7 @@ docker run -it \
     -e DISPLAY=unix$DISPLAY \
     --env="DISPLAY" \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
-    --name=pcd_process \
+    --name=pcd-colorization \
     --privileged \
     --network host \
     -v /etc/timezone:/etc/timezone:ro \
@@ -35,11 +35,11 @@ docker run -it \
     -e DISPLAY=unix$DISPLAY \
     --env="DISPLAY" \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
-    --name=pcd_process \
+    --name=pcd-colorization \
     --privileged \
     --network host \
     -v /etc/timezone:/etc/timezone:ro \
-    -d pcl_process_backup
+    -d osrf/ros:noetic-desktop-full 
 ```
 
 
@@ -47,7 +47,7 @@ docker run -it \
 ```bash
 
 xhost +local:docker
-docker attach pcd_process
+docker attach pcd-colorization
 ```
 
 ## 2. Inside docker image

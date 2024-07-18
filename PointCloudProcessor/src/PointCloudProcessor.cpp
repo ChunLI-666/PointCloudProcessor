@@ -3,7 +3,7 @@
 #include "RGBCloud.hpp"
 #include <pcl/io/pcd_io.h>          // For loading point cloud
 #include <pcl/filters/voxel_grid.h> // Example for downsampling
-#include <pcl/filters/crop_box.h>   // Example for cropping
+#include <pcl/filters/crop_box.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/common/transforms.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -69,17 +69,19 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     // mlsParams.search_radius = 0.03;
     mlsParams.search_radius = 0.03;
     mlsParams.sqr_gauss_param = 0.0009;
-    mlsParams.num_threads = 32;
+    mlsParams.num_threads = 30;
+
     mlsParams.slp_upsampling_radius = 0.05;
     mlsParams.slp_upsampling_stepsize = 0.01;
     mlsParams.rud_point_density = 50;
     // mlsParams.vgd_voxel_size = 0.001; // 0.001
     mlsParams.vgd_voxel_size = 0.002; // 0.001
     mlsParams.vgd_iterations = 3;
-    // mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
     mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
+    // mlsParams.upsampling_enum = None;
 
     mlsParams.sor_kmean_neighbour = 60;
+
     mlsParams.sor_std_dev = 0.7;
 
     // Check if maskImageFolder was provided; if not, set enableMaksSegmentation to false
@@ -99,6 +101,7 @@ void PointCloudProcessor::loadPointCloud()
     }
 
     // Inflate the bounding box a little bit if needed
+
     double padding = 2.0; // Add some padding to the bounding box
     minPt.array() -= padding;
     maxPt.array() += padding;
@@ -109,6 +112,8 @@ void PointCloudProcessor::loadPointCloud()
     {
         throw std::runtime_error("Couldn't read point cloud file.");
     }
+
+    std::cout << "Start crop pcd..." << std::endl;
 
     // Crop the point cloud based on the bounding box
     pcl::CropBox<pcl::PointXYZI> boxFilter;
@@ -122,16 +127,8 @@ void PointCloudProcessor::loadPointCloud()
     std::cout << "Cropped point cloud with " << croppedCloud->points.size() << " points." << std::endl;
 
    // Generate the new file path for the cropped point cloud
-    std::string croppedPointCloudPath = pointCloudPath;
-    size_t lastDotPosition = croppedPointCloudPath.find_last_of(".");
-    if (lastDotPosition != std::string::npos)
-    {
-        croppedPointCloudPath = croppedPointCloudPath.substr(0, lastDotPosition) + "_crop.pcd";
-    }
-    else
-    {
-        croppedPointCloudPath += "_crop.pcd";
-    }
+    std::string croppedPointCloudPath = std::string(outputPath +  "scans-crop.pcd");;
+
 
     // Save the cropped point cloud
     pcl::io::savePCDFileASCII(croppedPointCloudPath, *croppedCloud);
