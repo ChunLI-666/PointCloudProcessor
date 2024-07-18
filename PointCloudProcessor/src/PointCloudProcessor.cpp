@@ -3,6 +3,7 @@
 #include "RGBCloud.hpp"
 #include <pcl/io/pcd_io.h>          // For loading point cloud
 #include <pcl/filters/voxel_grid.h> // Example for downsampling
+#include <pcl/filters/crop_box.h>   // Example for cropping
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/common/transforms.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -1030,7 +1031,7 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 0.8; // meter, 1
+    const double distThreshold = 2; // meter, 1
     const double angThreshold = 25.0; // degree. 25
 
     for (auto &frame : frames)
