@@ -307,6 +307,7 @@ private:
 
     void saveColorizedPointCloud();
     void saveColorizedPointCloud(const RGBCloud &rgbCloud);
-
+    void saveColorizedPointCloud(const RGBCloud &rgbCloud, 
+                                pcl::PointCloud<PointXYZRGBMask>::Ptr cloudInWorldWithRGBandMask);
 
 };

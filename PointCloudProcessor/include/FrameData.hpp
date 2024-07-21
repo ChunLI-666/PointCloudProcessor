@@ -21,26 +21,70 @@ struct Pose6D
   double yaw;
 };
 
-// Define a new point type that inherits from pcl::PointXYZRGB and adds a new float field
-struct PointXYZRGBMask : public pcl::PointXYZRGB
-{
-  float segmentMask;
+// // Define a new point type that inherits from pcl::PointXYZRGB and adds a new float field
+// struct EIGEN_ALIGN16 _PointXYZRGBMask // Forward declaration
+// {
+//   PCL_ADD_POINT4D; // This adds the members x,y,z which can also be accessed using the point (which is float[4])
+//   // PCL_ADD_NORMAL4D;
+//   // PCL_ADD_INTENSITY
+//   PCL_ADD_RGB;
+//   float segmentMask;
+//   // double time;
+// };
 
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment for performance reasons
-} EIGEN_ALIGN16;                  // Enforces SSE padding for correct memory alignment
+// struct EIGEN_ALIGN16 PointXYZRGBMask : public _PointXYZRGBMask
+// {
+//   inline constexpr PointXYZRGBMask (const _PointXYZRGBMask &p) :
+//     PointXYZRGBMask {p.x, p.y, p.z, p.r, p.g, p.b, p.segmentMask} {}
+  
+//   inline constexpr PointXYZRGBMask (float _x, float _y, float _z,
+//                                     std::int8_t _r, std::int8_t _g, std::int8_t _b, float _segmentMask) :
+//     _PointXYZRGBMask {_x, _y, _z, _r, _g, _b, _segmentMask} {}
+
+//   friend std::ostream& operator << (std::ostream& os, const PointXYZRGBMask& p)
+//   {
+//     os << "(" << "xyz: [" << p.x << "," << p.y << "," << p.z << "], ";
+//     os << "rgb: [" << p.r << "," << p.g << "," << p.b << "], ";
+//     os << "segmentMask: " << p.segmentMask << ")";
+//     return (os);
+//   }
+
+//   PCL_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment for performance reasons
+// };                  // Enforces SSE padding for correct memory alignment
+
+
+// // Register the new point type with Point Cloud Library
+// POINT_CLOUD_REGISTER_POINT_STRUCT(_PointXYZRGBMask,
+//   (float, x, x)
+//   (float, y, y)
+//   (float, z, z)
+//   (std::uint8_t, r, r)
+//   (std::uint8_t, g, g)
+//   (std::uint8_t, b, b)
+//   (float, segmentMask, segmentMask)
+// )
+// POINT_CLOUD_REGISTER_POINT_WRAPPER(PointXYZRGBMask, _PointXYZRGBMask)
+
+struct EIGEN_ALIGN16 PointXYZRGBMask
+{
+  PCL_ADD_POINT4D; // This adds the members x,y,z which can also be accessed using the point (which is float[4])
+  PCL_ADD_RGB;
+  uint16_t segmentMask;
+
+  PCL_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment for performance reasons
+};                  // Enforces SSE padding for correct memory alignment
 
 // Register the new point type with Point Cloud Library
 POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZRGBMask,
-                                  (float, x, x)(float, y, y)(float, z, z)(std::uint8_t, r, r)(std::uint8_t, g, g)(std::uint8_t, b, b)(float, segmentMask, segmentMask))
-
-// struct RGBCloud {
-//     pcl::PointCloud<pcl::PointXYZI>::Ptr cloudNoColor;
-//     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudWithSmoothedColor;
-//     std::vector<std::vector<float>> viewColors; // 每个view的RGB颜色
-//     std::vector<float> orientationScores; // 每个view的方向分数
-//     std::vector<float> distanceScores; // 每个view的距离分数
-//     std::vector<float> finalScores; // 每个view的最终分数
-// };
+  (float, x, x)
+  (float, y, y)
+  (float, z, z)
+  // (std::uint8_t, r, r)
+  // (std::uint8_t, g, g)
+  // (std::uint8_t, b, b)
+  (float, rgb, rgb)
+  (uint16_t, segmentMask, segmentMask)
+)
 
 class FrameData
 {
