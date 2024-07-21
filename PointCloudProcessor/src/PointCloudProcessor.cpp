@@ -74,8 +74,8 @@ PointCloudProcessor::PointCloudProcessor(const std::string &pointCloudPath,
     mlsParams.slp_upsampling_stepsize = 0.01;
     mlsParams.rud_point_density = 50;
     // mlsParams.vgd_voxel_size = 0.001; // 0.001
-    mlsParams.vgd_voxel_size = 0.002; // 0.001
-    mlsParams.vgd_iterations = 3;
+    mlsParams.vgd_voxel_size = 0.001; // 0.001
+    mlsParams.vgd_iterations = 4;
     // mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
     mlsParams.upsampling_enum = METHOD_VOXEL_GRID_DILATION;
 
@@ -381,97 +381,97 @@ void PointCloudProcessor::viewCullingAndSaveFilteredPcds(std::vector<FrameData::
  *
  * @param frame The frame data containing the point cloud and camera pose.
  */
-void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes)
-{
-    // 0. Init objects
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZI>());
+// void PointCloudProcessor::pcdColorization(std::vector<FrameData::Ptr> &keyframes)
+// {
+//     // 0. Init objects
+//     pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPose(new pcl::PointCloud<pcl::PointXYZI>());
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInBodyWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
-    pcl::PointCloud<PointXYZRGBMask>::Ptr scanInBodyWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
+//     pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInBodyWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
+//     pcl::PointCloud<PointXYZRGBMask>::Ptr scanInBodyWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInWorldWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
-    pcl::PointCloud<PointXYZRGBMask>::Ptr scanInWorldWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
+//     pcl::PointCloud<pcl::PointXYZRGB>::Ptr scanInWorldWithRGB(new pcl::PointCloud<pcl::PointXYZRGB>());
+//     pcl::PointCloud<PointXYZRGBMask>::Ptr scanInWorldWithRGBandMask(new pcl::PointCloud<PointXYZRGBMask>());
 
-    // 1. Transform point cloud from world coordinates to camera pose coordinates
-    for (auto keyframe : keyframes)
-    {
-        // Reset cloud and assign new objects at the beginning
-        scanInBodyWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
-        scanInBodyWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
-        scanInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
-        scanInWorldWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
+//     // 1. Transform point cloud from world coordinates to camera pose coordinates
+//     for (auto keyframe : keyframes)
+//     {
+//         // Reset cloud and assign new objects at the beginning
+//         scanInBodyWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+//         scanInBodyWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
+//         scanInWorldWithRGB.reset(new pcl::PointCloud<pcl::PointXYZRGB>());
+//         scanInWorldWithRGBandMask.reset(new pcl::PointCloud<PointXYZRGBMask>());
 
-        Pose voPose = getPoseFromOdom(keyframe->pose);
+//         Pose voPose = getPoseFromOdom(keyframe->pose);
 
-        Eigen::Isometry3d t_c2w = Eigen::Isometry3d::Identity();
-        t_c2w.translate(Eigen::Vector3d(voPose.x, voPose.y, voPose.z));
-        t_c2w.rotate(Eigen::Quaterniond(voPose.qw, voPose.qx, voPose.qy, voPose.qz));
+//         Eigen::Isometry3d t_c2w = Eigen::Isometry3d::Identity();
+//         t_c2w.translate(Eigen::Vector3d(voPose.x, voPose.y, voPose.z));
+//         t_c2w.rotate(Eigen::Quaterniond(voPose.qw, voPose.qx, voPose.qy, voPose.qz));
 
-        Eigen::Affine3f transformation_w2c = t_c2w.inverse().cast<float>();
-        Eigen::Affine3f transformation_w2c_optimized = t_c2w.inverse().cast<float>();
+//         Eigen::Affine3f transformation_w2c = t_c2w.inverse().cast<float>();
+//         Eigen::Affine3f transformation_w2c_optimized = t_c2w.inverse().cast<float>();
 
-        Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
-        Eigen::Affine3f transformation_c2w_optimized = transformation_c2w;
+//         Eigen::Affine3f transformation_c2w = t_c2w.cast<float>();
+//         Eigen::Affine3f transformation_c2w_optimized = transformation_c2w;
 
-        if (enableNIDOptimize)
-        {
-            // transformation_c2w_optimized
-            Eigen::Isometry3d t_c2w_optimized = t_c2w * T_camera_lidar_optimized;
-            transformation_c2w_optimized = t_c2w_optimized.cast<float>();
-            transformation_w2c_optimized = transformation_c2w_optimized.inverse();
-        }
+//         if (enableNIDOptimize)
+//         {
+//             // transformation_c2w_optimized
+//             Eigen::Isometry3d t_c2w_optimized = t_c2w * T_camera_lidar_optimized;
+//             transformation_c2w_optimized = t_c2w_optimized.cast<float>();
+//             transformation_w2c_optimized = transformation_c2w_optimized.inverse();
+//         }
 
-        pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c_optimized);
-        camera::GenericCameraBase::ConstPtr proj = camera::create_camera(camera_model, K_camera_coefficients, D_camera);
-        vlcal::ViewCullingParams view_culling_params;
-        std::cout << "before view_culling!" << std::endl;
-        vlcal::ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
+//         pcl::transformPointCloud(*cloud, *cloudInCameraPose, transformation_w2c_optimized);
+//         camera::GenericCameraBase::ConstPtr proj = camera::create_camera(camera_model, K_camera_coefficients, D_camera);
+//         vlcal::ViewCullingParams view_culling_params;
+//         std::cout << "before view_culling!" << std::endl;
+//         vlcal::ViewCulling view_culling(proj, {4096, 3000}, view_culling_params); // TODO: hardcode
 
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPoseCulled = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());
-        std::cout << " the point size of cloudInCameraPoseCulled is " << cloudInCameraPoseCulled->size() << std::endl;
+//         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudInCameraPoseCulled = view_culling.cull(cloudInCameraPose, Eigen::Isometry3d::Identity());
+//         std::cout << " the point size of cloudInCameraPoseCulled is " << cloudInCameraPoseCulled->size() << std::endl;
 
-        generateColorMap(*keyframe, cloudInCameraPoseCulled, scanInBodyWithRGB);
+//         generateColorMap(*keyframe, cloudInCameraPoseCulled, scanInBodyWithRGB);
 
-        if (enableMaskSegmentation)
-        {
-            // 4. project 3d points to 2d segmentation mask images
-            generateSegmentMap(*keyframe, scanInBodyWithRGB, scanInBodyWithRGBandMask);
+//         if (enableMaskSegmentation)
+//         {
+//             // 4. project 3d points to 2d segmentation mask images
+//             generateSegmentMap(*keyframe, scanInBodyWithRGB, scanInBodyWithRGBandMask);
 
-            // save the segmented point cloud
-            std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_rgb-mask" + ".pcd");
-            pcl::PCDWriter pcd_writer;
+//             // save the segmented point cloud
+//             std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_rgb-mask" + ".pcd");
+//             pcl::PCDWriter pcd_writer;
 
-            if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
-            {
-                throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
-            }
-            std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << scanInBodyWithRGBandMask->size() << std::endl;
+//             if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGBandMask) == -1)
+//             {
+//                 throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+//             }
+//             std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << scanInBodyWithRGBandMask->size() << std::endl;
 
-            // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-            pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w_optimized);
-            *cloudInWorldWithRGBandMask += *scanInWorldWithRGBandMask;
-        }
-        else
-        {
-            // 4. Save the colorized pointcloud to seperate PCD file
-            // visualizePointCloud(pcl_cloud_filtered);
+//             // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
+//             pcl::transformPointCloud(*scanInBodyWithRGBandMask, *scanInWorldWithRGBandMask, transformation_c2w_optimized);
+//             *cloudInWorldWithRGBandMask += *scanInWorldWithRGBandMask;
+//         }
+//         else
+//         {
+//             // 4. Save the colorized pointcloud to seperate PCD file
+//             // visualizePointCloud(pcl_cloud_filtered);
 
-            std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_rgb" + ".pcd");
-            pcl::PCDWriter pcd_writer;
+//             std::string filteredPointCloudPath = std::string(outputPath + "filtered_pcd/" + std::to_string(keyframe->imageTimestamp) + "_rgb" + ".pcd");
+//             pcl::PCDWriter pcd_writer;
 
-            if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
-            {
-                throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
-            }
-            std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << scanInBodyWithRGBandMask->size() << std::endl;
+//             if (pcd_writer.writeASCII(filteredPointCloudPath, *scanInBodyWithRGB) == -1)
+//             {
+//                 throw std::runtime_error("Couldn't save filtered point cloud to PCD file.");
+//             }
+//             std::cout << "Filtered point cloud saved to: " << filteredPointCloudPath << ", the point size is " << scanInBodyWithRGBandMask->size() << std::endl;
 
-            // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
-            pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w_optimized);
-            *cloudInWorldWithRGB += *scanInWorldWithRGB;
-        }
-    }
-    saveColorizedPointCloud();
-}
+//             // 5. Transforn colored scan into world frame, and combine them into one big colored cloud
+//             pcl::transformPointCloud(*scanInBodyWithRGB, *scanInWorldWithRGB, transformation_c2w_optimized);
+//             *cloudInWorldWithRGB += *scanInWorldWithRGB;
+//         }
+//     }
+//     saveColorizedPointCloud();
+// }
 
 void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &keyframes)
 {
@@ -598,7 +598,9 @@ void PointCloudProcessor::pcdColorizationAndSmooth(std::vector<FrameData::Ptr> &
     smoothColors(rgbCloud);
     // smoothColorsWithLocalRegion(rgbCloud, 0.1); // 添加基于局部区域的颜色平滑
     removePointsWithNoColor(rgbCloud);
-    saveColorizedPointCloud(rgbCloud);
+    if (enableMaskSegmentation) 
+        saveColorizedPointCloud(rgbCloud, cloudInWorldWithRGBandMask);
+    else saveColorizedPointCloud(rgbCloud);
 }
 
 void PointCloudProcessor::smoothColors(RGBCloud &rgbCloud)
@@ -800,8 +802,15 @@ void PointCloudProcessor::generateSegmentMap(const FrameData &frame,
                 point_rgb_segmented.b = pc_color->points[i].b;
                 point_rgb_segmented.g = pc_color->points[i].g;
                 point_rgb_segmented.r = pc_color->points[i].r;
+                // std::cout << grayImg.at<uchar>(v, u) << std::endl;
                 point_rgb_segmented.segmentMask = grayImg.at<uchar>(v, u);
-
+                // TODO: hardcode
+                if (static_cast<int>(grayImg.at<uchar>(v, u)) == 255)
+                {
+                    point_rgb_segmented.r = 255;
+                    point_rgb_segmented.g = 0;
+                    point_rgb_segmented.b = 0;
+                }   
                 pc_color_segmented->push_back(point_rgb_segmented);
             }
         }
@@ -904,38 +913,53 @@ void PointCloudProcessor::saveColorizedPointCloud()
 
 void PointCloudProcessor::saveColorizedPointCloud(const RGBCloud &rgbCloud)
 {
-    if (enableMaskSegmentation)
+
+    if (rgbCloud.cloudWithSmoothedColor->size() > 0)
     {
-        if (rgbCloud.cloudWithSmoothedColor->size() > 0)
+        std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
+        pcl::PCDWriter pcd_writer;
+
+        if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *rgbCloud.cloudWithSmoothedColor) == -1)
         {
-            std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
-            pcl::PCDWriter pcd_writer;
-            // TODO: fix it, replace cloudWithSmoothedColor
-            if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *rgbCloud.cloudWithSmoothedColor) == -1)
-            {
-                throw std::runtime_error("Couldn't save colorized and segment colored point cloud.");
-            }
-            else
-            {
-                std::cout << "All colored and segment colored cloud saved to: " << rgbCloud.cloudWithSmoothedColor << std::endl;
-            }
+            throw std::runtime_error("Couldn't save colorized point cloud.");
+        }
+        else
+        {
+            std::cout << "All colored cloud saved to: " << cloudInWorldWithRGBDir << std::endl;
         }
     }
-    else
-    {
-        if (rgbCloud.cloudWithSmoothedColor->size() > 0)
-        {
-            std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
-            pcl::PCDWriter pcd_writer;
 
-            if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *rgbCloud.cloudWithSmoothedColor) == -1)
-            {
-                throw std::runtime_error("Couldn't save colorized point cloud.");
-            }
-            else
-            {
-                std::cout << "All colored cloud saved to: " << cloudInWorldWithRGBDir << std::endl;
-            }
+}
+
+void PointCloudProcessor::saveColorizedPointCloud(const RGBCloud &rgbCloud, pcl::PointCloud<PointXYZRGBMask>::Ptr cloudInWorldWithRGBandMask)
+{
+    if (cloudInWorldWithRGBandMask->size() > 0)
+    {
+        std::string cloudInWorldWithRGBandMaskDir(outputPath + "cloudInWorldWithRGBandMask.pcd");
+        pcl::PCDWriter pcd_writer;
+        // TODO: fix it, replace cloudWithSmoothedColor
+        if (pcd_writer.writeASCII(cloudInWorldWithRGBandMaskDir, *cloudInWorldWithRGBandMask) == -1)
+        {
+            throw std::runtime_error("Couldn't save colorized and segment colored point cloud.");
+        }
+        else
+        {
+            std::cout << "All colored and segment colored cloud saved to: " << cloudInWorldWithRGBandMaskDir << std::endl;
+        }
+    }
+
+    if (rgbCloud.cloudWithSmoothedColor->size() > 0)
+    {
+        std::string cloudInWorldWithRGBDir(outputPath + "cloudInWorldWithRGB.pcd");
+        pcl::PCDWriter pcd_writer;
+
+        if (pcd_writer.writeASCII(cloudInWorldWithRGBDir, *rgbCloud.cloudWithSmoothedColor) == -1)
+        {
+            throw std::runtime_error("Couldn't save colorized point cloud.");
+        }
+        else
+        {
+            std::cout << "All colored cloud saved to: " << cloudInWorldWithRGBDir << std::endl;
         }
     }
 }
@@ -1031,7 +1055,7 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 2; // meter, 1
+    const double distThreshold = 4; // meter, 1
     const double angThreshold = 25.0; // degree. 25
 
     for (auto &frame : frames)

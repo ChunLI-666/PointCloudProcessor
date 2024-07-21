@@ -65,7 +65,7 @@ VisualLiDARData::VisualLiDARData(const FrameData& keyframe) {
   pcl::PointCloud<pcl::PointXYZI>::Ptr downsampled_pcd(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::VoxelGrid<pcl::PointXYZI> voxel_grid;
   voxel_grid.setInputCloud(pcd);
-  voxel_grid.setLeafSize(0.002f, 0.002f, 0.002f);  // Adjust the leaf size as needed
+  voxel_grid.setLeafSize(0.003f, 0.003f, 0.003f);  // Adjust the leaf size as needed
   voxel_grid.filter(*downsampled_pcd);
 
   std::cout << "Downsampled point cloud with " << downsampled_pcd->points.size() << " points." << std::endl;
