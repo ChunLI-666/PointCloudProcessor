@@ -25,3 +25,4 @@ PointCloudProcessor/build/PointCloudProcessor \
     --enableMLS $enableMLS \
     --enableNIDOptimize $enableNIDOptimize \
     --enableInitialGuessManual $enableInitialGuessManual
+    --mask_image_folder "$root_dir/maskpredeeplab/"
