@@ -1,3 +1,6 @@
 .vscode/*
+PointCloudProcessor/thirdparty/json
+PointCloudProcessor/thirdparty/Sophus
+
 imgui.ini
 test/

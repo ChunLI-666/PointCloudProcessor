@@ -96,6 +96,7 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
     }
     std::cout << "Success read file " << input_file_path_ << std::endl;
 
+#ifdef _OPENMP
     // Process the PCD file
     auto start = std::chrono::high_resolution_clock::now();
     size_t initial_point_count = cloud->points.size();
@@ -163,6 +164,8 @@ void CloudSmooth::process(pcl::PointCloud<pcl::PointXYZINormal>::Ptr &cloudAftSm
     sorAfterMLS.filter(mls_points);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
+
+#endif
 
     // Log the processing information
     std::cout << "\n==============================\n"
