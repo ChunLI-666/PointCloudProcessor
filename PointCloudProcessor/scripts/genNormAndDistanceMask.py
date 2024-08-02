@@ -7,6 +7,8 @@ import logging
 import numpy as np
 # EDT
 from scipy.ndimage import distance_transform_edt as distance
+from scipy.ndimage import sobel
+
 from skimage import segmentation as skimage_seg
 import matplotlib
 matplotlib.use('Agg')  # 使用 Agg 后端
@@ -180,9 +182,229 @@ class Crack():
         self.preprocess()
         self.generate_norm_masks()
         self.generate_distance_masks()
+        self.generate_skeletion_direction()
         self.save_results()
         
-    def compute_3d_crack_width(self):
+    # def compute_skeleton_edge_pts(self, radius = 10):
+    #     # Extract 2d skeleton pts and its left and right edge pts
+    #     for frame in self.frames:
+    #         frame.skeleton_2d_pts = []  # Initialize as an empty list
+    #         frame.skeleton_direction_2d = []  # Initialize as an empty list
+
+    #         skeleton_points = np.argwhere(frame.skeleton > 0)
+    #         for point in skeleton_points:
+    #             y, x = point
+                
+    #             distance_to_edge = frame.distance_transformed[y, x]
+    #             direction_2d = self.compute_skeleton_direction(frame.skeleton, x, y, radius)
+    #             # frame.skeleton_direction_2d.append({'skeleton_pt': (x, y), 'direction_2d': direction_2d.tolist()})        
+    #             # left_edge, right_edge = self.find_edges(frame.crack_mask, frame.distance_transformed, x, y, distance_to_edge)
+    #             left_edge_pt2d, right_edge_pt2d = self.find_edges_by_direction(frame.crack_mask, x, y, direction_2d)
+    #             local_plane_3d = self.find_local_plane(frame.points_3d_mask, x, y, radius)
+
+    #             # frame.skeleton_2d_pts.append((left_edge, (x, y), right_edge))
+    #             if(left_edge_pt2d and right_edge_pt2d):
+    #                 frame.skeleton_2d_pts.append({
+    #                     'skeleton_pt': (x, y), 
+    #                     'left_edge_pt2d': left_edge_pt2d, 
+    #                     'right_edge_pt2d': right_edge_pt2d,
+    #                     'direction_2d': direction_2d.tolist(),
+    #                     'local_plane_3d': local_plane_3d
+    #                 })
+
+    def compute_skeleton_edge_pts(self, radius=10, sample_rate=0.001, search_radius=0.1, epsilon=1e-3):
+        """Compute skeleton edge points for each frame.
+
+        Args:
+            radius (int, optional): Radius(in pixel) of the neighborhood for computing skeleton direction. Defaults to 10.
+            sample_rate (float, optional): Sample rate (in meter) for searching 3D edge points. Defaults to 0.001.
+            search_radius (int, optional): Search radius (in meter) for searching 3D edge points. Defaults to 0.1.
+            epsilon (int, optional): Epsilon value (in meter) for searching 3D edge points. Defaults to 1e-3.
+        """
+        for frame in self.frames:
+            frame.skeleton_2d_pts = []
+            frame.skeleton_direction_2d = []
+
+            # Find skeleton points in the frame
+            skeleton_points = np.argwhere(frame.skeleton > 0)
+            for point in skeleton_points:
+                y, x = point
+
+                # Compute skeleton direction
+                direction_2d = self.compute_skeleton_direction(frame.skeleton, x, y, radius)
+
+                # Find left and right edge points based on the skeleton direction
+                left_edge_pt2d, right_edge_pt2d = self.find_edges_by_direction(frame.crack_mask, x, y, direction_2d)
+
+                # Find local plane in the neighborhood
+                local_plane_3d = self.find_local_plane(frame.points_3d_mask, x, y, radius)
+
+                if left_edge_pt2d and right_edge_pt2d:
+                    # Search for left edge point's 3D coordinates
+                    left_edge_3d_pt = self.search_3d_edge_points(local_plane_3d, left_edge_pt2d, sample_rate, search_radius, epsilon)
+                    # Search for right edge point's 3D coordinates
+                    right_edge_3d_pt = self.search_3d_edge_points(local_plane_3d, right_edge_pt2d, sample_rate, search_radius, epsilon)
+
+                    # Append the skeleton edge points to the frame
+                    frame.skeleton_2d_pts.append({
+                        'skeleton_pt': (x, y),
+                        'left_edge_pt2d': left_edge_pt2d,
+                        'right_edge_pt2d': right_edge_pt2d,
+                        'direction_2d': direction_2d.tolist(),
+                        'local_plane_3d': local_plane_3d,
+                        'left_edge_3d_pt': left_edge_3d_pt,
+                        'right_edge_3d_pt': right_edge_3d_pt
+                    })
+
+    def sample_3d_points_on_plane(plane_coefficients, center_3d_point, sample_rate=0.001, search_radius=0.1):
+        """Sample 3D points on a plane.
+
+        Args:
+            plane_coefficients (tuple): Coefficients of the plane equation (a, b, c, d).
+            center_3d_point (tuple): Center point of the plane (x0, y0, z0).
+            sample_rate (float): Rate at which to sample the points.
+            search_radius (float): Radius around the center point to sample points.
+
+        Returns:
+            numpy.ndarray: Array of sampled 3D points on the plane.
+        """
+        a, b, c, d = plane_coefficients
+        x0, y0, z0 = center_3d_point
+
+        # Calculate the range of sampling points
+        x_min, x_max = x0 - search_radius, x0 + search_radius
+        y_min, y_max = y0 - search_radius, y0 + search_radius
+
+        # Generate the grid points
+        x_range = np.arange(x_min, x_max, sample_rate)
+        y_range = np.arange(y_min, y_max, sample_rate)
+        x_grid, y_grid = np.meshgrid(x_range, y_range)
+        z_grid = (-a * x_grid - b * y_grid - d) / c
+
+        # Convert the grid points to a list of points
+        sampled_points = np.vstack((x_grid.ravel(), y_grid.ravel(), z_grid.ravel())).T
+
+        return sampled_points
+
+    def search_3d_edge_points(self, plane_coefficients, edge_2d_pt, sample_rate=0.001, search_radius=0.1, epsilon=0.001):
+        """Searches for 3D edge points within a given plane.
+
+        Args:
+            plane_coefficients (list): The coefficients of the plane equation.
+            edge_2d_pt (list): The 2D coordinates of the edge point.
+            sample_rate (float): The rate at which to sample 3D points on the plane, Unit(m).
+            search_radius (float): The radius within which to search for 3D points.
+            epsilon (float): The maximum error allowed for a 3D point to be considered an edge point.
+
+        Returns:
+            list: The best 3D point found within the search criteria.
+        """
+        # Sample 3D points on the local plane
+        sampled_points = sample_3d_points_on_plane(plane_coefficients, edge_2d_pt, sample_rate, search_radius)
+
+        min_error = float('inf')
+        best_3d_pt = None
+
+        for point in sampled_points:
+            # Project these neighboring points onto the 2D plane
+            points_2d, _ = cv2.projectPoints(point.reshape(1, -1), rvec=np.zeros((3, 1)), tvec=np.zeros((3, 1)), 
+                                            cameraMatrix=self.intrinsic_matrix, distCoeffs=self.distortion_coefficients)
+            projected_2d = points_2d.squeeze().astype(int)
+            
+            # Calculate the error with respect to the given 2D edge point
+            error = np.linalg.norm(projected_2d - np.array(edge_2d_pt))
+            
+            if error < min_error:
+                min_error = error
+                best_3d_pt = point.tolist()
+            
+            if error < epsilon:
+                break
+        
+        return best_3d_pt
+    
+    def find_local_plane(self, points_3d_mask, x, y, radius=20):
+        """Return local plane of the skeleton point, using the points in the radius.
+        Project 2D points to 3D using the projection matrix.
+
+        Args:
+            points_3d_mask (np.ndarray): 3D points mask.
+            x (int): x-coordinate of the skeleton point.
+            y (int): y-coordinate of the skeleton point.
+            radius (int): Radius to consider for local plane calculation.
+
+        Returns:
+            np.ndarray: Coefficients of the local plane (ax + by + cz + d = 0).
+        """
+        # Extract the points within the radius
+        y_min, y_max = max(0, y - radius), min(points_3d_mask.shape[0], y + radius)
+        x_min, x_max = max(0, x - radius), min(points_3d_mask.shape[1], x + radius)
+        local_points_3d = points_3d_mask[y_min:y_max, x_min:x_max].reshape(-1, 3)
+
+        # Remove zero points (assuming zero points are invalid)
+        local_points_3d = local_points_3d[np.any(local_points_3d != 0, axis=1)]
+
+        if local_points_3d.shape[0] < 3:
+            return None  # Not enough points to define a plane
+
+        # Fit a plane to the local points using SVD
+        centroid = np.mean(local_points_3d, axis=0)
+        centered_points = local_points_3d - centroid
+        _, _, vh = np.linalg.svd(centered_points)
+        normal = vh[2, :]
+
+        # Plane equation: ax + by + cz + d = 0
+        d = -np.dot(normal, centroid)
+        plane_coefficients = np.append(normal, d)
+
+        return plane_coefficients
+                            
+    # def compute_3d_crack_width(self, radius = 10):
+    #     """Compute 3d crack width for each skeleton point
+    #     For each frame:
+    #     1. Extracts skeleton points.
+    #     2. For each skeleton point:
+    #         - Calculates the 2d distance to the nearest edge.
+    #         - Finds the nearest left and right edge points using circular search.
+    #         - Appends the results to skeleton_2d_pts.
+    #     """
+                    
+    #     result_data = []  # Initialize the result data list
+    #     # Extract 3d skeleton pts from distance mask
+    #     for frame in self.frames:
+    #         frame.skeleton_3d_info = []
+    #         for skeleton_2d_pt in frame.skeleton_2d_pts:
+    #             skeleton_pt = skeleton_2d_pt['skeleton_pt']
+    #             left_edge_pt = skeleton_2d_pt['left_edge_pt']
+    #             right_edge_pt = skeleton_2d_pt['right_edge_pt']
+                
+    #             # Ensure left_edge_pt and right_edge_pt are not None
+    #             if left_edge_pt is not None and right_edge_pt is not None:
+    #                 skeleton_3d_pt = frame.points_3d_mask[skeleton_pt[1], skeleton_pt[0]].tolist()
+    #                 left_edge_3d_pt = frame.points_3d_mask[left_edge_pt[1], left_edge_pt[0]].tolist()
+    #                 right_edge_3d_pt = frame.points_3d_mask[right_edge_pt[1], right_edge_pt[0]].tolist()
+    #                 width = float(np.linalg.norm(np.array(left_edge_3d_pt) - np.array(right_edge_3d_pt)))
+                    
+    #                 frame.skeleton_3d_info.append({
+    #                     'skeleton_3d_pt': skeleton_3d_pt, 
+    #                     'left_edge_3d_pt': left_edge_3d_pt, 
+    #                     'right_edge_3d_pt': right_edge_3d_pt,
+    #                     'crack_width_3d': width
+    #                 })
+    #             else:
+    #                 frame.skeleton_3d_info.append({
+    #                     'skeleton_3d_pt': frame.points_3d_mask[skeleton_pt[1], skeleton_pt[0]].tolist(),
+    #                     'left_edge_3d_pt': None,
+    #                     'right_edge_3d_pt': None,
+    #                     'crack_width_3d': None
+    #                 })
+    #         result_data.extend(frame.skeleton_3d_info)
+
+    #     json_file = os.path.join(self.data_root_dir, 'crack_width_3d_results.json')
+    #     with open(json_file, 'w') as jsonfile:
+    #         json.dump(result_data, jsonfile, indent=4)
+
+    def compute_3d_crack_width_via_searching(self, radius = 10, epsilon = 1e-3):
         """Compute 3d crack width for each skeleton point
         For each frame:
         1. Extracts skeleton points.
@@ -191,56 +413,36 @@ class Crack():
             - Finds the nearest left and right edge points using circular search.
             - Appends the results to skeleton_2d_pts.
         """
-        # Extract 2d skeleton pts and its left and right edge pts
-        for frame in self.frames:
-            frame.skeleton_2d_pts = []  # Initialize as an empty list
-            skeleton_points = np.argwhere(frame.skeleton > 0)
-            for point in skeleton_points:
-                y, x = point
-                distance_to_edge = frame.distance_transformed[y, x]
-                left_edge, right_edge = self.find_edges(frame.crack_mask, frame.distance_transformed, x, y, distance_to_edge)
-                # frame.skeleton_2d_pts.append((left_edge, (x, y), right_edge))
-                frame.skeleton_2d_pts.append({
-                    'skeleton_pt': (x, y), 
-                    'left_edge_pt': left_edge, 
-                    'right_edge_pt': right_edge
-                })
+                    
         result_data = []  # Initialize the result data list
         # Extract 3d skeleton pts from distance mask
         for frame in self.frames:
             frame.skeleton_3d_info = []
             for skeleton_2d_pt in frame.skeleton_2d_pts:
-                skeleton_pt = skeleton_2d_pt['skeleton_pt']
-                left_edge_pt = skeleton_2d_pt['left_edge_pt']
-                right_edge_pt = skeleton_2d_pt['right_edge_pt']
+                # skeleton_3d_pt = skeleton_2d_pt['skeleton_3d_pt']
+                # left_edge_pt2d = skeleton_2d_pt['left_edge_pt2d']
+                # right_edge_pt2d = skeleton_2d_pt['right_edge_pt2d']
+                left_edge_3d_pt = skeleton_2d_pt['left_edge_3d_pt']
+                right_edge_3d_pt = skeleton_2d_pt['right_edge_3d_pt']
                 
                 # Ensure left_edge_pt and right_edge_pt are not None
-                if left_edge_pt is not None and right_edge_pt is not None:
-                    skeleton_3d_pt = frame.points_3d_mask[skeleton_pt[1], skeleton_pt[0]].tolist()
-                    left_edge_3d_pt = frame.points_3d_mask[left_edge_pt[1], left_edge_pt[0]].tolist()
-                    right_edge_3d_pt = frame.points_3d_mask[right_edge_pt[1], right_edge_pt[0]].tolist()
-                    width = float(np.linalg.norm(np.array(left_edge_3d_pt) - np.array(right_edge_3d_pt)))
+                if left_edge_3d_pt is not None and right_edge_3d_pt is not None:
+                    width = np.linalg.norm(np.array(left_edge_3d_pt) - np.array(right_edge_3d_pt))
                     
                     frame.skeleton_3d_info.append({
-                        'skeleton_3d_pt': skeleton_3d_pt, 
+                        # 'skeleton_3d_pt': skeleton_3d_pt, 
                         'left_edge_3d_pt': left_edge_3d_pt, 
                         'right_edge_3d_pt': right_edge_3d_pt,
                         'crack_width_3d': width
                     })
                 else:
                     frame.skeleton_3d_info.append({
-                        'skeleton_3d_pt': frame.points_3d_mask[skeleton_pt[1], skeleton_pt[0]].tolist(),
+                        # 'skeleton_3d_pt': frame.points_3d_mask[skeleton_pt[1], skeleton_pt[0]].tolist(),
                         'left_edge_3d_pt': None,
                         'right_edge_3d_pt': None,
                         'crack_width_3d': None
                     })
             result_data.extend(frame.skeleton_3d_info)
-
-        # Save 3d crack width results to JSON
-        # result_data = []
-        # for frame in self.frames:
-        #     for info in frame.skeleton_3d_info:
-                # result_data.append(info)
 
         json_file = os.path.join(self.data_root_dir, 'crack_width_3d_results.json')
         with open(json_file, 'w') as jsonfile:
@@ -252,20 +454,7 @@ class Crack():
         min_distance_right = float('inf')
         left_edge = None
         right_edge = None
-        
-        # for i in range(-search_radius, search_radius + 1):
-        #     for j in range(-search_radius, search_radius + 1):
-        #         if 0 <= y + i < mask.shape[0] and 0 <= x + j < mask.shape[1]:
-        #             if mask[y + i, x + j] == 0:
-        #                 dist = np.sqrt(i**2 + j**2)
-        #                 if dist <= distance_to_edge:
-        #                     if dist < min_distance_left:
-        #                         min_distance_left = dist
-        #                         left_edge = (x + j, y + i)
-        #                     elif dist < min_distance_right and (x + j, y + i) != left_edge:
-        #                         min_distance_right = dist
-        #                         right_edge = (x + j, y + i)
-        
+                
         for i in range(-search_radius, search_radius + 1):
             for j in range(-search_radius, search_radius + 1):
                 dist = np.sqrt(i**2 + j**2)
@@ -279,6 +468,42 @@ class Crack():
                             min_distance_right = dist
                             right_edge = (nx, ny)
         return left_edge, right_edge
+        
+    def find_edges_by_direction(self, mask, x, y, direction):
+        """
+        Find the left and right edge points using the direction vector.
+
+        Args:
+            mask: 2D array of the crack mask.
+            x: x coordinate of the skeleton point.
+            y: y coordinate of the skeleton point.
+            direction: Direction vector at the skeleton point.
+
+        Returns:
+            A tuple of the left edge point and the right edge point.
+        """
+        normal = np.array([-direction[1], direction[0]])
+        left_edge = self.trace_edge(mask, x, y, normal)
+        right_edge = self.trace_edge(mask, x, y, -normal)
+        return left_edge, right_edge
+
+    def trace_edge(self, mask, x, y, direction):
+        """
+        Trace along the given direction until an edge point is found.
+
+        Args:
+            mask: 2D array of the crack mask.
+            x: x coordinate of the starting point.
+            y: y coordinate of the starting point.
+            direction: Direction vector to trace along.
+
+        Returns:
+            The coordinates of the edge point.
+        """
+        pos = np.array([x, y])
+        while 0 <= pos[0] < mask.shape[1] and 0 <= pos[1] < mask.shape[0] and mask[int(pos[1]), int(pos[0])] > 0:
+            pos += direction
+        return tuple(pos.astype(int))        
         
     def read_data(self):
         """
@@ -385,6 +610,49 @@ class Crack():
             frame.add_dist_mask(distance_mask)
             frame.add_pts_3d_mask(points_3d_mask)
 
+    def compute_skeleton_direction(self, skeleton, x, y, radius):
+        """
+        Compute the direction of the skeleton at point (x, y).
+
+        Args:
+            skeleton: 2D array of the skeleton.
+            x: x coordinate of the point.
+            y: y coordinate of the point.
+            radius: Radius of the neighbourhood to consider.
+
+        Returns:
+            A tuple representing the direction vector (dx, dy).
+        """
+        # Extract the neighbourhood
+        y_min, y_max = max(0, y - radius), min(skeleton.shape[0], y + radius + 1)
+        x_min, x_max = max(0, x - radius), min(skeleton.shape[1], x + radius + 1)
+        neighbourhood = skeleton[y_min:y_max, x_min:x_max]
+
+        # Compute gradients using Sobel operator
+        gx = sobel(neighbourhood, axis=1)
+        gy = sobel(neighbourhood, axis=0)
+
+        # Average gradient to get direction
+        direction_x = np.mean(gx)
+        direction_y = np.mean(gy)
+
+        return np.array([direction_x, direction_y])
+    
+    def generate_skeletion_direction(self, radius = 10):
+        """
+        Generate the skeleton direction for each frame.
+
+        For each frame, extracts the skeleton points and its neighbours, and compute the direction of these points.
+        Appends the results to skeleton_2d_pts.
+        """
+        for frame in self.frames:
+            frame.skeleton_direction_2d = []  # Initialize as an empty list
+            skeleton_points = np.argwhere(frame.skeleton > 0)
+            for point in skeleton_points:
+                y, x = point
+                direction_2d = self.compute_skeleton_direction(frame.skeleton, x, y, radius)
+                frame.skeleton_direction_2d.append({'skeleton_pt': (x, y), 'direction_2d': direction_2d.tolist()})
+            
     def save_results(self):
         """
         Saves the generated masks.
@@ -418,7 +686,8 @@ def main():
 
     crack = Crack(data_root_dir, intrinsic_matrix, distortion_coefficients)
     crack.process()
-    crack.compute_3d_crack_width()
+    crack.compute_skeleton_edge_pts()
+    crack.compute_3d_crack_width_via_searching()
     
 if __name__ == '__main__':
     main()
