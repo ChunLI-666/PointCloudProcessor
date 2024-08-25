@@ -224,7 +224,7 @@ class Crack():
             mask_height, mask_width = frame.crack_mask.shape
             for point, normal in zip(points_2d, normals):
                 x, y = point
-                if 0 <= x < mask_width and 0 <= y < mask_height and frame.crack_mask[y, x] > 0:
+                if 0 <= x < mask_width and 0 <= y < mask_height > 0:
                     # logging.info(f"Normal: {normal}")
                     norm_mask[y, x] = normal
 
@@ -264,21 +264,6 @@ class Crack():
 
             frame.add_dist_mask(distance_mask)
             frame.add_pts_3d_mask(points_3d_mask)
-    
-    # def generate_skeletion_direction(self, radius = 12):
-    #     """
-    #     Generate the skeleton direction for each frame.
-
-    #     For each frame, extracts the skeleton points and its neighbours, and compute the direction of these points.
-    #     Appends the results to skeleton_2d_pts.
-    #     """
-    #     for frame in self.frames:
-    #         frame.skeleton_direction_2d = []  # Initialize as an empty list
-    #         skeleton_points = np.argwhere(frame.skeleton > 0)
-    #         for point in skeleton_points:
-    #             y, x = point
-    #             direction_2d = self.compute_skeleton_direction(frame.skeleton, x, y, radius)
-    #             frame.skeleton_direction_2d.append({'skeleton_pt': (x, y), 'direction_2d': direction_2d.tolist()})
             
     def save_results(self):
         """
@@ -311,7 +296,7 @@ class Crack():
             else:
                 z_min, z_max = 0, 1  # Handle case with no points
                 
-            logger.info(f"z_min: {z_min}, z_max: {z_max}")
+            logger.debug(f"z_min: {z_min}, z_max: {z_max}")
 
             # Iterate over each pixel in the mask
             mask_height, mask_width, _ = frame.points_3d_mask.shape
@@ -337,7 +322,6 @@ class Crack():
             logger.info(f"Saved normal mask: {norm_mask_path}")
             logger.info(f"Saved distance mask: {distance_mask_path}")
             logger.info(f"Saved 3D points on image: {vis_pt3d_on_img_path}")
-
 
     def manual_select_skeleton_points(self, frames, scale_factor=0.5):
         # Iterate over each frame
@@ -544,7 +528,7 @@ class Crack():
 
         cv2.imwrite(vis_path, skeleton_image)        
     
-    def sample_3d_points_on_plane(self, plane_coefficients, center_3d_point, sample_rate=0.001, search_radius=0.1):
+    def sample_3d_points_on_plane(self, plane_coefficients, center_3d_point, sample_rate=0.0001, search_radius=0.03):
         """Sample 3D points on a plane.
 
         Args:
@@ -556,6 +540,9 @@ class Crack():
         Returns:
             numpy.ndarray: Array of sampled 3D points on the plane.
         """
+        sample_rate = 0.0001 # 0.00001m = 0.05mm
+        search_radius = 0.03
+        
         a, b, c, d = plane_coefficients
         x0, y0, z0 = center_3d_point
 
@@ -574,7 +561,7 @@ class Crack():
 
         return sampled_points
 
-    def search_3d_edge_points(self, plane_coefficients, local_plane_centroid_3d,edge_2d_pt, sample_rate=0.0005, search_radius=0.1, epsilon=0.0001):
+    def search_3d_edge_points(self, plane_coefficients, local_plane_centroid_3d,edge_2d_pt, sample_rate=0.0001, search_radius=0.05, epsilon=0.00001):
         """Searches for 3D edge points within a given plane.
 
         Args:
@@ -611,7 +598,7 @@ class Crack():
         
         return best_3d_pt
     
-    def find_local_plane(self, points_3d_mask, x, y, radius=200):
+    def find_local_plane(self, points_3d_mask, x, y, radius=150):
         """Return local plane of the skeleton point, using the points in the radius.
         Project 2D points to 3D using the projection matrix.
 
@@ -763,7 +750,16 @@ class Crack():
             #     例如，如果 direction 是 [1, 0]，则表示每次沿 x 轴正方向移动一步。
             # '''
             pos += direction
-        return tuple(pos.astype(int))        
+
+        # Move back one step to be slightly inside the edge
+        pos -= direction*3
+
+        # Convert position to integer indices and ensure they are within bounds
+        pos = np.clip(pos, [0, 0], [mask.shape[1] - 1, mask.shape[0] - 1]).astype(int)
+        logger.info(f"Edge pos inside the mask: {pos}")
+        
+        # return tuple(pos.astype(int))
+        return tuple(pos)        
         
     def read_data(self):
         """
@@ -829,26 +825,49 @@ class Crack():
             A tuple representing the direction vector (dx, dy).
         """
         # Extract the neighbourhood
-        radius = 6 # pixels
+        radius = 4 # pixels
         y_min, y_max = max(0, y - radius), min(skeleton.shape[0], y + radius + 1)
         x_min, x_max = max(0, x - radius), min(skeleton.shape[1], x + radius + 1)
         neighbourhood = skeleton[y_min:y_max, x_min:x_max]
 
         # Apply Gaussian filter to smooth the image and reduce noise
-        smoothed = gaussian_filter(neighbourhood, sigma=1)
+        smoothed = gaussian_filter(neighbourhood, sigma=3)
 
         # Compute gradients using Sobel operator
         gx = sobel(smoothed, axis=1)
         gy = sobel(smoothed, axis=0)
 
-        # Average gradient to get direction
-        direction_x = np.mean(gx)
-        direction_y = np.mean(gy)
+        # # Average gradient to get direction
+        # direction_x = np.mean(gx)
+        # direction_y = np.mean(gy)
         
-        direction = np.array([direction_x, direction_y], dtype=float)
-        norm = np.linalg.norm(direction)
-        if norm != 0:
-            direction /= norm
+        # direction = np.array([direction_x, direction_y], dtype=float)
+        # norm = np.linalg.norm(direction)
+        # if norm != 0:
+        #     direction /= norm
+        
+        from numpy.linalg import eigh
+
+        # Compute the components of the structure tensor
+        Jxx = gx**2
+        Jxy = gx * gy
+        Jyy = gy**2
+
+        # Average the components of the structure tensor
+        Jxx = Jxx.mean()
+        Jxy = Jxy.mean()
+        Jyy = Jyy.mean()
+
+        # Calculate the eigenvalues and eigenvectors of the structure tensor
+        tensor = np.array([[Jxx, Jxy], [Jxy, Jyy]])
+        eigenvalues, eigenvectors = eigh(tensor)
+
+        # The eigenvector corresponding to the largest eigenvalue gives the principal direction
+        principal_eigenvalue_index = np.argmax(eigenvalues)
+        direction = eigenvectors[:, principal_eigenvalue_index]
+
+        # Calculate orthogonal direction
+        direction = np.array([-direction[1], direction[0]])
 
         return direction
     
