@@ -1053,8 +1053,8 @@ void PointCloudProcessor::selectKeyframes()
     // Initialize keyframe identification variables
     FrameData::Ptr previousFrame = nullptr;
     // TODO: hardcode
-    const double distThreshold = 1; // meter, 1
-    const double angThreshold = 25.0; // degree. 25
+    const double distThreshold = 0.1; // meter, 1
+    const double angThreshold = 10.0; // degree. 25
 
     for (auto &frame : frames)
     {
